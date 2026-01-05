@@ -1,0 +1,19 @@
+# Build outputs
+*.exe
+*.dll
+*.lib
+*.obj
+*.o
+*.pdb
+*.ilk
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE / Editor
+.DS_Store
+Thumbs.db
