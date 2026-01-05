@@ -1,6 +1,6 @@
-# LegionLaptopToolkitCLI (LLTC)
+# Legion Laptop Toolkit CLI (LLTC)
 
-A lightweight, command-line-only tool to control battery charging modes and power-related features on compatible **Lenovo Legion** laptops.
+A lightweight, command-line-only tool to control battery charging modes on compatible Lenovo Legion laptops with **no background service**.
 
 > ℹ️ **Note**: This project is **actively maintained** and was inspired by the now-archived [LenovoLegionToolkit (LLT)](https://github.com/BartoszCichecki/LenovoLegionToolkit).
 > Special thanks to [@BartoszCichecki](https://github.com/BartoszCichecki) and the LLT community for pioneering the reverse-engineering of Lenovo’s `EnergyDrv` driver interface.
@@ -59,7 +59,7 @@ If the `\\.\EnergyDrv` device is not present, all battery-related commands will 
 This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE.
 
 ### Prerequisites
-- [MinGW-w64](https://www.mingw-w64.org/) (or MSYS2 with `mingw-w64-x86_64-gcc`)
+- [MinGW-w64](https://www.mingw-w64.org/)
 - `g++` in your `PATH`
 
 ### Build Steps
@@ -78,7 +78,12 @@ This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
-Portions of this project were inspired by [LenovoLegionToolkit](https://github.com/BartoszCichecki/LenovoLegionToolkit), which is also MIT-licensed.
+<details>
+<summary>✨ Inspired by LenovoLegionToolkit</summary>
+
+This project was made possible thanks to the pioneering reverse-engineering work done by the community around [LenovoLegionToolkit](https://github.com/BartoszCichecki/LenovoLegionToolkit).  
+While LLTC shares a similar goal — lightweight control of Legion laptop features — it does not incorporate any code from LenovoLegionToolkit (which is licensed under GPLv3), so this tool remains under the permissive MIT License.
+</details>
 
 ---
 
@@ -92,6 +97,6 @@ Portions of this project were inspired by [LenovoLegionToolkit](https://github.c
 
 This tool exists to empower automation, scripting, and minimal-power management on Lenovo gaming laptops — without GUI overhead or background services.
 
-Contributions, testing reports, and compatibility feedback are welcome!
+Contributions or issues are welcome!
 
 Happy coding!
