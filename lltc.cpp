@@ -164,6 +164,9 @@ bool TurnOffMonitor(){
     return true;
 }
 bool GetBatteryIsCharging() {
+    std::cerr << "Unavailable in this version.\n";
+    return false;
+
     bool isCharging;
     if (LenovoBatteryControl::GetCurrentBatteryIsCharging(isCharging)) {
         if (isCharging) {
