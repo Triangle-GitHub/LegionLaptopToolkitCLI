@@ -15,6 +15,11 @@ A lightweight, command-line-only tool to control a couple of features that are o
   - `1` / `Conservation`
   - `2` / `Normal`
   - `3` / `RapidCharge`
+- Get current keyboard backlight state: `Off`, `Low`, or `High`
+- Set keyboard backlight via name or number:
+  - `0` / `Off`
+  - `1` / `Low`
+  - `2` / `High`
 - Get or set OverDrive status (`on`/`off` or `1`/`0`)
 - Instantly turn off the display (`monitoroff`)
 
@@ -40,6 +45,14 @@ lltc set batterymode Conservation   # or: lltc set bm 1
 lltc set batterymode Normal         # or: lltc set bm 2
 lltc set batterymode RapidCharge    # or: lltc set bm 3
 
+# Get current keyboard backlight state
+lltc get keyboardbacklight   # or: lltc get kb
+
+# Set keyboard backlight
+lltc set keyboardbacklight Off     # or: lltc set kb 0
+lltc set keyboardbacklight Low     # or: lltc set kb 1
+lltc set keyboardbacklight High    # or: lltc set kb 2
+
 # Get OverDrive status
 lltc get overdrive     # or: lltc get od
 
@@ -53,8 +66,8 @@ lltc set overdrive off # or: lltc set od 0
 ## ⚠️ Requirements & Compatibility
 
 - **Windows 10 or 11 (64-bit)**
-- **Lenovo Legion (Gen 6+), IdeaPad Gaming, or LOQ** laptop
-- **Lenovo Energy Management Driver** installed (typically included with Lenovo Vantage)
+- **Lenovo Legion** laptop
+- **Lenovo Energy Management Driver** installed
 
 If the `\\.\EnergyDrv` device is not present, all battery-related commands will fail. Ensure Lenovo system software is properly installed.
 
@@ -95,7 +108,12 @@ While LLTC shares a similar goal — lightweight control of Legion laptop featur
 
 ## 🧩 Next Tasks
 - [X] Implement OverDrive control
-- [ ] Implement power mode switching (Quiet/Balance/Performance)
+- [X] Implement keyboard backlight control
+- [ ] **Implement power mode switching (Quiet/Balance/Performance)**
+- [ ] Implement port backlight control
+- [ ] Implement Always-on-USB control
+- [ ] Implement Instant-Boot control
+- [ ] Implement Flip-to-Start control
 
 ---
 
