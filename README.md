@@ -81,14 +81,56 @@ This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE
 - [MinGW-w64](https://www.mingw-w64.org/)
 - `g++` in your `PATH`
 
-### Build Steps
-1. Open terminal in project root
-2. Run:
-   ```bash
-   g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lkernel32 -luser32
-   ```
+### Option 1: Build via Terminal
+Open a terminal in the project root and run:
 
-> The resulting `lltc.exe` is **standalone** — no DLLs or redistributables required.
+```bash
+g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion
+```
+
+### Option 2: Build via VS Code (for development)
+1. Open the project folder in VS Code.
+2. Create `.vscode/tasks.json` with the following content:
+
+```json
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Build lltc.exe (Release)",
+            "command": "g++",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-O2",
+                "-s",
+                "-static",
+                "-Wall",
+                "-Wextra",
+                "-o",
+                "${workspaceFolder}/lltc.exe",
+                "${workspaceFolder}/lltc.cpp",
+                "-lole32",
+                "-loleaut32",
+                "-lwbemuuid",
+                "-luuid",
+                "-lversion"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Standalone release build with MinGW-w64"
+        }
+    ],
+    "version": "2.0.0"
+}
+```
+
+3. Press `Ctrl+Shift+B` to build.
 
 
 ---
@@ -107,8 +149,6 @@ While LLTC shares a similar goal — lightweight control of Legion laptop featur
 ---
 
 ## 🧩 Next Tasks
-- [X] Implement OverDrive control
-- [X] Implement keyboard backlight control
 - [ ] **Implement power mode switching (Quiet/Balance/Performance)**
 - [ ] Implement port backlight control
 - [ ] Implement Always-on-USB control
