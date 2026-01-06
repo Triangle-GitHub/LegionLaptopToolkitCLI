@@ -1,9 +1,9 @@
 # Legion Laptop Toolkit CLI (LLTC)
 
-A lightweight, command-line-only tool to control battery charging modes on compatible Lenovo Legion laptops with **no background service**.
+A lightweight, command-line-only tool to control a couple of features that are only available in Lenovo Vantage or Legion Zone with **no background service**.
 
 > ℹ️ **Note**: This project is **actively maintained** and was inspired by the now-archived [LenovoLegionToolkit (LLT)](https://github.com/BartoszCichecki/LenovoLegionToolkit).
-> Special thanks to [@BartoszCichecki](https://github.com/BartoszCichecki) and the LLT community for pioneering the reverse-engineering of Lenovo’s `EnergyDrv` driver interface.
+> Special thanks to [@BartoszCichecki](https://github.com/BartoszCichecki) and the LLT community for their foundational work on Lenovo laptop control interfaces.
 
 ---
 
@@ -15,9 +15,8 @@ A lightweight, command-line-only tool to control battery charging modes on compa
   - `1` / `Conservation`
   - `2` / `Normal`
   - `3` / `RapidCharge`
+- Get or set OverDrive status (`on`/`off` or `1`/`0`)
 - Instantly turn off the display (`monitoroff`)
-
-All operations communicate directly with Lenovo’s kernel-mode driver `\\.\EnergyDrv` using standard Windows `DeviceIoControl` calls.
 
 ---
 
@@ -38,8 +37,15 @@ lltc get batterymode   # or: lltc get bm
 
 # Set battery mode
 lltc set batterymode Conservation   # or: lltc set bm 1
-lltc set batterymode Normal   # or: lltc set bm 2
-lltc set batterymode RapidCharge   # or: lltc set bm 3
+lltc set batterymode Normal         # or: lltc set bm 2
+lltc set batterymode RapidCharge    # or: lltc set bm 3
+
+# Get OverDrive status
+lltc get overdrive     # or: lltc get od
+
+# Set OverDrive
+lltc set overdrive on  # or: lltc set od 1
+lltc set overdrive off # or: lltc set od 0
 ```
 
 ---
@@ -88,14 +94,12 @@ While LLTC shares a similar goal — lightweight control of Legion laptop featur
 ---
 
 ## 🧩 Next Tasks
-
+- [X] Implement OverDrive control
 - [ ] Implement power mode switching (Quiet/Balance/Performance)
 
 ---
 
 ## 💬 Final Note
-
-This tool exists to empower automation, scripting, and minimal-power management on Lenovo gaming laptops — without GUI overhead or background services.
 
 Contributions or issues are welcome!
 

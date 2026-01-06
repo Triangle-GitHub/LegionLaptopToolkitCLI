@@ -2,37 +2,40 @@
 #include<iostream>
 #include<algorithm>
 #include"LenovoBatteryControl.hpp"
+#include"LenovoOverdriveControl.hpp"
 
-inline std::string toLower(const std::string& s) {
-    std::string r = s;
-    std::transform(r.begin(), r.end(), r.begin(),
-        [](unsigned char c) { return std::tolower(c); });
-    return r;
-}
-
+inline std::string toLower(const std::string& s);
 bool TurnOffMonitor();
 bool GetBatteryMode();
 bool SetBatteryMode(int tar);
-bool GetBatteryIsCharging(void);
+bool GetBatteryIsCharging();
+bool GetOverdrive();
+bool SetOverdrive(int enable);
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Usage:\n"
                   << "  lltc monitoroff | mo\n"
                   << "  lltc get ischarging | ic\n"
                   << "  lltc get batterymode | bm\n"
-                  << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n";
+                  << "  lltc get overdrive | od\n"
+                  << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
+                  << "  lltc set overdrive <on|off|1|0> | od <on|off|1|0>\n";
         return 1;
     }
+
     std::string cmd1 = toLower(argv[1]);
+
     // === lltc monitoroff / mo ===
     if (cmd1 == "monitoroff" || cmd1 == "mo") {
         TurnOffMonitor();
         return 0;
     }
+
     // === lltc get ... ===
     if (cmd1 == "get") {
         if (argc < 3) {
-            std::cerr << "Error: 'get' requires a property (ischarging/ic, batterymode/bm).\n";
+            std::cerr << "Error: 'get' requires a property (ischarging/ic, batterymode/bm, overdrive/od).\n";
             return 1;
         }
         std::string prop = toLower(argv[2]);
@@ -40,54 +43,91 @@ int main(int argc, char* argv[]) {
             return GetBatteryIsCharging() ? 0 : 1;
         } else if (prop == "batterymode" || prop == "bm") {
             return GetBatteryMode() ? 0 : 1;
+        } else if (prop == "overdrive" || prop == "od") {
+            return GetOverdrive() ? 0 : 1;
         } else {
             std::cerr << "Error: unknown property '" << argv[2] << "'.\n";
             return 1;
         }
     }
-    // === lltc set batterymode ... ===
+
+    // === lltc set ... ===
     if (cmd1 == "set") {
         if (argc < 3) {
             std::cerr << "Error: 'set' requires a property.\n";
             return 1;
         }
         std::string prop = toLower(argv[2]);
-        if (prop != "batterymode" && prop != "bm") {
-            std::cerr << "Error: only 'batterymode' (or 'bm') can be set.\n";
-            return 1;
-        }
-        if (argc < 4) {
-            std::cerr << "Error: missing battery mode value.\n";
-            return 1;
-        }
-        std::string value = toLower(argv[3]);
-        int modeInt = -1;
-        try {
-            size_t pos;
-            int num = std::stoi(value, &pos);
-            if (pos == value.size() && num >= 1 && num <= 3) {
-                modeInt = num;
-            }
-        } catch (...) {
-            // not a number
-        }
-        if (modeInt == -1) {
-            if (value == "conservation") {
-                modeInt = 1;
-            } else if (value == "normal") {
-                modeInt = 2;
-            } else if (value == "rapidcharge") {
-                modeInt = 3;
-            } else {
-                std::cerr << "Error: invalid battery mode '" << argv[3]
-                          << "'. Use Conservation/Normal/RapidCharge or 1/2/3.\n";
+
+        // --- Battery Mode ---
+        if (prop == "batterymode" || prop == "bm") {
+            if (argc < 4) {
+                std::cerr << "Error: missing battery mode value.\n";
                 return 1;
             }
+            std::string value = toLower(argv[3]);
+            int modeInt = -1;
+            try {
+                size_t pos;
+                int num = std::stoi(value, &pos);
+                if (pos == value.size() && num >= 1 && num <= 3) {
+                    modeInt = num;
+                }
+            } catch (...) {
+                // not a number
+            }
+            if (modeInt == -1) {
+                if (value == "conservation") {
+                    modeInt = 1;
+                } else if (value == "normal") {
+                    modeInt = 2;
+                } else if (value == "rapidcharge") {
+                    modeInt = 3;
+                } else {
+                    std::cerr << "Error: invalid battery mode '" << argv[3]
+                              << "'. Use Conservation/Normal/RapidCharge or 1/2/3.\n";
+                    return 1;
+                }
+            }
+            return SetBatteryMode(modeInt) ? 0 : 1;
         }
-        return SetBatteryMode(modeInt) ? 0 : 1;
+
+        // --- Overdrive (od / overdrive) ---
+        if (prop == "overdrive" || prop == "od") {
+            if (argc < 4) {
+                std::cerr << "Error: missing overdrive value (on/off/1/0).\n";
+                return 1;
+            }
+            std::string value = toLower(argv[3]);
+            int enable = -1;
+
+            if (value == "on" || value == "1") {
+                enable = 1;
+            } else if (value == "off" || value == "0") {
+                enable = 0;
+            } else {
+                std::cerr << "Error: invalid overdrive value '" << argv[3]
+                          << "'. Use on/off or 1/0.\n";
+                return 1;
+            }
+
+            return SetOverdrive(enable) ? 0 : 1;
+        }
+
+        // --- Unknown property ---
+        std::cerr << "Error: only 'batterymode' (bm) and 'overdrive' (od) can be set.\n";
+        return 1;
     }
+
     std::cerr << "Error: unknown command '" << argv[1] << "'.\n";
     return 1;
+}
+
+inline std::string toLower(const std::string& s) {
+    std::string r = s;
+    std::transform(r.begin(), r.end(), r.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+    return r;
 }
 
 bool TurnOffMonitor(){
@@ -159,4 +199,50 @@ bool SetBatteryMode(int tar){
         return false;
     }
     return true;
+}
+
+bool SetOverdrive(int enable) {
+    if (enable != 0 && enable != 1) {
+        std::cerr << "Not supported or permission denined.\n";
+        return false;
+    }
+
+    OverDriveController controller;
+    if (!controller.IsOverDriveSupported()) {
+        std::cerr << "Not supported or permission denined.\n";
+        return false;
+    }
+
+    HRESULT hr = controller.SetOverDriveStatus(enable == 1);
+    if (SUCCEEDED(hr)) {
+        if (enable == 1) {
+            std::cout << "Overdrive enabled\n";
+        } else {
+            std::cout << "Overdrive disabled\n";
+        }
+        return true;
+    } else {
+        std::cerr << "Failed to set Overdrive status.\n";
+        return false;
+    }
+}
+
+bool GetOverdrive() {
+    OverDriveController controller;
+    if (!controller.IsOverDriveSupported()) {
+        std::cerr << "Not supported or permission denined.\n";
+        return false;
+    }
+
+    int status = controller.GetOverDriveStatus();
+    if (status == 1) {
+        std::cout << "Overdrive ON\n";
+        return true;
+    } else if (status == 0) {
+        std::cout << "Overdrive OFF\n";
+        return true;
+    } else {
+        std::cerr << "Failed to get Overdrive status.\n";
+        return false;
+    }
 }
