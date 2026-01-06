@@ -9,7 +9,7 @@ A lightweight, command-line-only tool to control a couple of features that are o
 
 ## 🛠 Features
 
-- ~~Get current battery charging status (`ischarging`)~~ (not working)
+- Get current battery charging status (`ischarging`)
 - Get current battery mode: `Conservation`, `Normal`, or `RapidCharge`
 - Set battery mode via name or number:
   - `1` / `Conservation`
@@ -34,8 +34,8 @@ lltc
 # Turn off display
 lltc monitoroff        # or: lltc mo
 
-# Get charging status (not working)
-# lltc get ischarging    # or: lltc get ic
+# Get charging status
+lltc get ischarging    # or: lltc get ic
 
 # Get current battery mode
 lltc get batterymode   # or: lltc get bm

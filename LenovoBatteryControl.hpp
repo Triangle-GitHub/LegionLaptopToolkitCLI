@@ -4,11 +4,19 @@
 #include <vector>
 #include <cstdint>
 #include <stdexcept>
+#include <objbase.h>
+#include <Wbemidl.h>
+#include <comdef.h>
 
 enum class BatteryState {
     Conservation,
     Normal,
     RapidCharge
+};
+enum class ChargingState {
+    Connected,
+    ConnectedLowWattage,
+    Disconnected
 };
 
 namespace LenovoBatteryControl {
@@ -57,27 +65,13 @@ namespace LenovoBatteryControl {
         return hDriver;
     }
 
-    inline bool GetCurrentBatteryIsCharging(bool& outIsCharging) {
-        HANDLE hDriver = GetEnergyDriverHandle();
-        if (hDriver == INVALID_HANDLE_VALUE) {
+    inline bool GetChargingState(ChargingState& outState) {
+        SYSTEM_POWER_STATUS sps = {0};
+        if (!GetSystemPowerStatus(&sps)) {
             return false;
         }
-        DWORD bytesReturned = 0;
-        uint32_t inBuffer = 0xFFFFFFFF;
-        uint32_t outBuffer = 0;
-        BOOL success = DeviceIoControl(
-            hDriver,
-            0x831020F8, // IOCTL_ENERGY_BATTERY_CHARGE_MODE
-            &inBuffer, sizeof(inBuffer),
-            &outBuffer, sizeof(outBuffer),
-            &bytesReturned,
-            nullptr
-        );
-        if (!success || bytesReturned != sizeof(uint32_t)) {
-            return false;
-        }
-        uint32_t state = ReverseEndianness(outBuffer);
-        outIsCharging = GetNthBit(state, 17); // Bit 17 indicates charging
+        if (sps.ACLineStatus == 1) outState = ChargingState::Connected;
+        else outState = ChargingState::Disconnected;
         return true;
     }
 
