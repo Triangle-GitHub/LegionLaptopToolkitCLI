@@ -10,10 +10,9 @@ A lightweight, command-line-only tool to control a couple of features that are o
 ## 🛠 Features
 
 - Get or set battery charging mode
-- Get detailed battery information with dynamic monitoring mode
-- Get current keyboard backlight state
 - Get or set keyboard white backlight
-- Get or set OverDrive status
+- Get or set screen OverDrive status
+- Get detailed battery information (with dynamic monitoring mode)
 - Instantly turn off the display
 
 ---
@@ -24,12 +23,6 @@ A lightweight, command-line-only tool to control a couple of features that are o
 # Show help
 lltc
 
-# Turn off display
-lltc monitoroff        # or: lltc mo
-
-# Get charging status
-lltc get ischarging    # or: lltc get ic
-
 # Get current battery mode
 lltc get batterymode   # or: lltc get bm
 
@@ -37,11 +30,6 @@ lltc get batterymode   # or: lltc get bm
 lltc set batterymode Conservation   # or: lltc set bm 1
 lltc set batterymode Normal         # or: lltc set bm 2
 lltc set batterymode RapidCharge    # or: lltc set bm 3
-
-# Get detailed battery information
-lltc get batteryinformation             # or: lltc get bi
-lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1000ms by default)
-lltc get batteryinformation -dmon 500   # or: lltc get bi -dmon 500
 
 # Get current keyboard backlight state
 lltc get keyboardbacklight   # or: lltc get kb
@@ -57,6 +45,14 @@ lltc get overdrive     # or: lltc get od
 # Set OverDrive
 lltc set overdrive on  # or: lltc set od 1
 lltc set overdrive off # or: lltc set od 0
+
+# Get detailed battery information
+lltc get batteryinformation             # or: lltc get bi
+lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1000ms by default)
+lltc get batteryinformation -dmon 500   # or: lltc get bi -dmon 500
+
+# Turn off display
+lltc monitoroff        # or: lltc mo
 ```
 
 ---
@@ -67,7 +63,7 @@ lltc set overdrive off # or: lltc set od 0
 - **Lenovo Legion** laptop
 - **Lenovo Energy Management Driver** installed
 
-If the `\\.\EnergyDrv` device is not present, all battery-related commands will fail. Ensure Lenovo system software is properly installed.
+If the `\\.\EnergyDrv` device is not present, battery-related commands will fail. Ensure Lenovo system software is properly installed.
 
 ---
 
