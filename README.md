@@ -9,11 +9,14 @@ A lightweight, command-line-only tool to control a couple of features that are o
 
 ## 🛠 Features
 
+- Get or set power mode (as well as power button color) 🔑
 - Get or set battery charging mode
 - Get or set keyboard white backlight
-- Get or set screen OverDrive status
+- Get or set screen OverDrive status 🔑
 - Get detailed battery information (with dynamic monitoring mode)
 - Instantly turn off the display
+
+> 🔑: Admin privileges required.
 
 ---
 
@@ -22,6 +25,15 @@ A lightweight, command-line-only tool to control a couple of features that are o
 ```bash
 # Show help
 lltc
+
+# Get current power mode
+lltc get powermode   # or: lltc get pm
+
+# Set power mode
+lltc set powermode Quiet           # or: lltc set pm 1
+lltc set powermode Balance         # or: lltc set pm 2
+lltc set powermode Performance     # or: lltc set pm 3
+#lltc set powermode GodMode (coming soon...)
 
 # Get current battery mode
 lltc get batterymode   # or: lltc get bm
@@ -61,9 +73,7 @@ lltc monitoroff        # or: lltc mo
 
 - **Windows 10 or 11 (64-bit)**
 - **Lenovo Legion** laptop
-- **Lenovo Energy Management Driver** installed
-
-If the `\\.\EnergyDrv` device is not present, battery-related commands will fail. Ensure Lenovo system software is properly installed.
+- **Lenovo Energy Management Driver** (`\\.\EnergyDrv`) installed
 
 ---
 
@@ -79,7 +89,7 @@ This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE
 Open a terminal in the project root and run:
 
 ```bash
-g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion -lsetupapi
+g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion -lsetupapi -lpowrprof
 ```
 
 ### Option 2: Build via VS Code (for development)
@@ -108,7 +118,8 @@ g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemu
                 "-lwbemuuid",
                 "-luuid",
                 "-lversion",
-                "-lsetupapi"
+                "-lsetupapi",
+                "-lpowrprof"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -144,7 +155,7 @@ While LLTC shares a similar goal — lightweight control of Legion laptop featur
 ---
 
 ## 🧩 Next Tasks
-- [ ] **Implement power mode switching (Quiet/Balance/Performance)**
+- [ ] Implement GodMode
 - [ ] Implement port backlight control
 - [ ] Implement Always-on-USB control
 - [ ] Implement Instant-Boot control

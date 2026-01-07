@@ -5,6 +5,7 @@
 #include"LenovoBatteryControl.hpp"
 #include"LenovoOverdriveControl.hpp"
 #include"LenovoWhitekeyboardbacklightControl.hpp"
+#include"LenovoPowerModeControl.hpp"
 
 inline std::string toLower(const std::string& s);
 bool TurnOffMonitor();
@@ -16,6 +17,8 @@ bool GetWhiteKeyboardBacklight();
 bool SetWhiteKeyboardBacklight(int tar);
 bool GetFullBatteryInfo();
 void GetFullBatteryInfoDmon(int ms);
+bool GetPowerMode();
+bool SetPowerMode(int tar);
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -26,9 +29,11 @@ int main(int argc, char* argv[]) {
         << "  lltc get keyboardbacklight | kb\n"
         << "  lltc get batteryinformation | bi\n"
         << "  lltc get batteryinformation -dmon\n"
+        << "  lltc get powermode | pm\n"
         << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
         << "  lltc set overdrive <on|off|1|0>\n"
-        << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n";
+        << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n"
+        << "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n";
         return 1;
     }
     std::string cmd1 = toLower(argv[1]);
@@ -40,7 +45,7 @@ int main(int argc, char* argv[]) {
     // === lltc get ... ===
     if (cmd1 == "get") {
         if (argc < 3) {
-            std::cerr << "Error: 'get' requires a property (ischarging/ic, batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi).\n";
+            std::cerr << "Error: 'get' requires a property (batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi, powermode/pm).\n";
             return 1;
         }
         std::string prop = toLower(argv[2]);
@@ -71,6 +76,8 @@ int main(int argc, char* argv[]) {
             return GetOverdrive() ? 0 : 1;
         } else if (prop == "keyboardbacklight" || prop == "kb") {
             return GetWhiteKeyboardBacklight() ? 0 : 1;
+        } else if (prop == "powermode" || prop == "pm") {
+            return GetPowerMode() ? 0 : 1;
         } else {
             std::cerr << "Error: unknown property '" << argv[2] << "'.\n";
             return 1;
@@ -83,6 +90,48 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::string prop = toLower(argv[2]);
+        
+        // --- Power Mode ---
+        if (prop == "powermode" || prop == "pm") {
+            if (argc < 4) {
+                std::cerr << "Error: missing power mode value.\n";
+                return 1;
+            }
+            std::string value = toLower(argv[3]);
+            int modeInt = -1;
+            
+            try {
+                size_t pos;
+                int num = std::stoi(value, &pos);
+                if (pos == value.size()) {
+                    if (num == 1 || num == 2 || num == 3 || num == 254) {
+                        modeInt = num;
+                    }
+                }
+            } catch (...) {
+                // not a number
+            }
+            
+            if (modeInt == -1) {
+                if (value == "quiet") {
+                    modeInt = 1;
+                } else if (value == "balance") {
+                    modeInt = 2;
+                } else if (value == "performance") {
+                    modeInt = 3;
+                } else if (value == "godmode") {
+                    modeInt = 254;
+                }
+            }
+            
+            if (modeInt == -1) {
+                std::cerr << "Error: invalid power mode '" << argv[3]
+                    << "'. Use Quiet/Balance/Performance/GodMode or 1/2/3/254.\n";
+                return 1;
+            }
+            return SetPowerMode(modeInt) ? 0 : 1;
+        }
+        
         // --- Battery Mode ---
         if (prop == "batterymode" || prop == "bm") {
             if (argc < 4) {
@@ -167,7 +216,7 @@ int main(int argc, char* argv[]) {
             return SetOverdrive(enable) ? 0 : 1;
         }
         // --- Unknown property ---
-        std::cerr << "Error: only 'batterymode' (bm), 'keyboardbacklight' (kb) and 'overdrive' (od) can be set.\n";
+        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb) and 'overdrive' (od) can be set.\n";
         return 1;
     }
     std::cerr << "Error: unknown command '" << argv[1] << "'.\n";
@@ -451,5 +500,72 @@ void GetFullBatteryInfoDmon(int ms) {
                   << std::endl;
 
         Sleep(ms);
+    }
+}
+
+bool GetPowerMode() {
+    PowerMode currentMode;
+    if (LegionPowerMode::GetPowerMode(currentMode)) {
+        switch (currentMode) {
+            case PowerMode::Quiet:
+                std::cout << "Quiet\n";
+                break;
+            case PowerMode::Balance:
+                std::cout << "Balance\n";
+                break;
+            case PowerMode::Performance:
+                std::cout << "Performance\n";
+                break;
+            case PowerMode::GodMode:
+                std::cout << "GodMode\n";
+                break;
+        }
+        return true;
+    } else {
+        std::cerr << "Failed to get current power mode.\n";
+        return false;
+    }
+}
+
+bool SetPowerMode(int tar) {
+    PowerMode mode;
+    switch(tar) {
+        case 1:
+            mode = PowerMode::Quiet;
+            break;
+        case 2:
+            mode = PowerMode::Balance;
+            break;
+        case 3:
+            mode = PowerMode::Performance;
+            break;
+        case 254:
+            mode = PowerMode::GodMode;
+            std::cerr << "Not supported.\n";
+            return false;
+        default:
+            std::cerr << "Invalid power mode.\n";
+            return false;
+    }
+    
+    if (LegionPowerMode::SetPowerMode(mode)) {
+        switch (mode) {
+            case PowerMode::Quiet:
+                std::cout << "Quiet\n";
+                break;
+            case PowerMode::Balance:
+                std::cout << "Balance\n";
+                break;
+            case PowerMode::Performance:
+                std::cout << "Performance\n";
+                break;
+            case PowerMode::GodMode:
+                std::cout << "GodMode\n";
+                break;
+        }
+        return true;
+    } else {
+        std::cerr << "Switch failed.\n";
+        return false;
     }
 }
