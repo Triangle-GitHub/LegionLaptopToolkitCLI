@@ -1,6 +1,7 @@
 #include<windows.h>
 #include<iostream>
 #include<algorithm>
+#include<iomanip>
 #include"LenovoBatteryControl.hpp"
 #include"LenovoOverdriveControl.hpp"
 #include"LenovoWhitekeyboardbacklightControl.hpp"
@@ -9,23 +10,25 @@ inline std::string toLower(const std::string& s);
 bool TurnOffMonitor();
 bool GetBatteryMode();
 bool SetBatteryMode(int tar);
-bool GetBatteryIsCharging();
 bool GetOverdrive();
 bool SetOverdrive(int enable);
 bool GetWhiteKeyboardBacklight();
 bool SetWhiteKeyboardBacklight(int tar);
+bool GetFullBatteryInfo();
+void GetFullBatteryInfoDmon(int ms);
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Usage:\n"
-            << "  lltc monitoroff | mo\n"
-            << "  lltc get ischarging | ic\n"
-            << "  lltc get batterymode | bm\n"
-            << "  lltc get overdrive | od\n"
-            << "  lltc get keyboardbacklight | kb\n"
-            << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
-            << "  lltc set overdrive <on|off|1|0>\n"
-            << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n";
+        << "  lltc monitoroff | mo\n"
+        << "  lltc get batterymode | bm\n"
+        << "  lltc get overdrive | od\n"
+        << "  lltc get keyboardbacklight | kb\n"
+        << "  lltc get batteryinformation | bi\n"
+        << "  lltc get batteryinformation -dmon\n"
+        << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
+        << "  lltc set overdrive <on|off|1|0>\n"
+        << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n";
         return 1;
     }
     std::string cmd1 = toLower(argv[1]);
@@ -37,12 +40,31 @@ int main(int argc, char* argv[]) {
     // === lltc get ... ===
     if (cmd1 == "get") {
         if (argc < 3) {
-            std::cerr << "Error: 'get' requires a property (ischarging/ic, batterymode/bm, overdrive/od, keyboardbacklight/kb).\n";
+            std::cerr << "Error: 'get' requires a property (ischarging/ic, batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi).\n";
             return 1;
         }
         std::string prop = toLower(argv[2]);
-        if (prop == "ischarging" || prop == "ic") {
-            return GetBatteryIsCharging() ? 0 : 1;
+        
+        if (prop == "batteryinformation" || prop == "bi") {
+            if (argc >= 4 && std::string(argv[3]) == "-dmon") {
+                int refreshMs = 1000;
+                if (argc >= 5) {
+                    try {
+                        refreshMs = std::stoi(argv[4]);
+                        if (refreshMs < 10) {
+                            std::cerr << "Error: refresh interval must be at least 10ms.\n";
+                            return 1;
+                        }
+                    } catch (...) {
+                        std::cerr << "Error: invalid refresh interval '" << argv[4] << "'. Must be a number >= 10.\n";
+                        return 1;
+                    }
+                }
+                GetFullBatteryInfoDmon(refreshMs);
+                return 0;
+            } else {
+                return GetFullBatteryInfo() ? 0 : 1;
+            }
         } else if (prop == "batterymode" || prop == "bm") {
             return GetBatteryMode() ? 0 : 1;
         } else if (prop == "overdrive" || prop == "od") {
@@ -163,26 +185,7 @@ bool TurnOffMonitor(){
     SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, (LPARAM)2);
     return true;
 }
-bool GetBatteryIsCharging() {
-    ChargingState isCharging;
-    if (LenovoBatteryControl::GetChargingState(isCharging)) {
-        switch (isCharging) {
-            case ChargingState::Connected:
-                std::cout << "Connected\n";
-                break;
-            case ChargingState::ConnectedLowWattage:
-                std::cout << "Low-wattage adaper connected\n";
-                break;
-            case ChargingState::Disconnected:
-                std::cout << "Disconnected\n";
-                break;
-        }
-        return true;
-    } else {
-        std::cerr << "Failed to get charging status.\n";
-        return false;
-    }
-}
+
 bool GetBatteryMode(){
     BatteryState currentMode;
     if (LenovoBatteryControl::GetCurrentBatteryMode(currentMode)) {
@@ -200,6 +203,7 @@ bool GetBatteryMode(){
     } else return false;
     return true;
 }
+
 bool SetBatteryMode(int tar){
     BatteryState state;
     switch(tar){
@@ -338,4 +342,114 @@ bool SetWhiteKeyboardBacklight(int tar) {
         return false;
     }
     return true;
+}
+
+bool GetFullBatteryInfo() {
+    BatteryInfoResult result = {0};
+
+    if (!LenovoBatteryControl::GetBatteryInformation(result)) {
+        std::cerr << "Failed to get battery information" << std::endl;
+        return false;
+    }
+    std::cout << "AC Connected: " << (result.isAcConnected ? "Yes" : "No") << std::endl;
+    std::cout << "Battery Life: " << static_cast<int>(result.batteryLifePercent) << "%" << std::endl;
+    
+    if (result.batteryLifeTime != 0xFFFFFFFF) {
+        std::cout << "Estimated Remaining Time: " 
+                  << result.batteryLifeTime / 3600 << "h " 
+                  << (result.batteryLifeTime % 3600) / 60 << "m" << std::endl;
+    }
+    
+    std::cout << "Discharge Rate: " << result.dischargeRate << " mW" << std::endl;
+    std::cout << "Current Capacity: " << result.currentCapacity << " mWh" << std::endl;
+    std::cout << "Designed Capacity: " << result.designedCapacity << " mWh" << std::endl;
+    std::cout << "Full Charged Capacity: " << result.fullChargedCapacity << " mWh" << std::endl;
+    std::cout << "Cycle Count: " << result.cycleCount << std::endl;
+    std::cout << "Low Battery Alert: " << (result.isLowBattery ? "Yes" : "No") << std::endl;
+
+    std::cout << "======" << std::endl;
+    
+    if (result.temperatureC >= 0) {
+        std::cout << "Battery Temperature: " << std::fixed << std::setprecision(1) 
+                  << result.temperatureC << " C" << std::endl;
+    } else {
+        std::cout << "Battery Temperature: Not available" << std::endl;
+    }
+
+    if (result.manufactureDate.wYear != 0) {
+        std::cout << "Manufacture Date: " 
+                  << result.manufactureDate.wYear << "-" 
+                  << std::setw(2) << std::setfill('0') << result.manufactureDate.wMonth << "-" 
+                  << std::setw(2) << std::setfill('0') << result.manufactureDate.wDay << std::endl;
+    } else {
+        std::cout << "Manufacture Date: Not available" << std::endl;
+    }
+
+    if (result.firstUseDate.wYear != 0) {
+        std::cout << "First Use Date: " 
+                  << result.firstUseDate.wYear << "-" 
+                  << std::setw(2) << std::setfill('0') << result.firstUseDate.wMonth << "-" 
+                  << std::setw(2) << std::setfill('0') << result.firstUseDate.wDay << std::endl;
+    } else {
+        std::cout << "First Use Date: Not available" << std::endl;
+    }
+    return true;
+}
+
+void GetFullBatteryInfoDmon(int ms) {
+    GetFullBatteryInfo();
+    std::cout << "======" << std::endl;
+    
+    std::cout<<std::setfill(' ');
+    std::cout << std::right
+              << std::setw(5) << "temp"
+              << std::setw(5) << "pct"
+              << std::setw(7) << "pwr"
+              << std::setw(8) << "cap"
+              << std::setw(6) << "cycle"
+              << std::setw(6) << "islow"
+              << std::endl;
+    std::cout << std::right
+              << std::setw(5) << "(C)"
+              << std::setw(5) << "(%)"
+              << std::setw(7) << "(W)"
+              << std::setw(8) << "(Wh)"
+              << std::setw(6) << "(s)"
+              << std::setw(6) << "(0/1)"
+              << std::endl;
+
+    while (true) {
+        BatteryInfoResult result = {0};
+        if (!LenovoBatteryControl::GetBatteryInformation(result)) {
+            Sleep(500);
+            continue;
+        }
+
+        double pwrW = result.dischargeRate / 1000.0;
+        char pwrBuf[12];
+        snprintf(pwrBuf, sizeof(pwrBuf), "%+.2f", pwrW);
+        std::string pwrStr = pwrBuf;
+
+        double capWh = result.currentCapacity / 1000.0;
+        char capBuf[12];
+        snprintf(capBuf, sizeof(capBuf), "%.2f", capWh);
+        std::string capStr = capBuf;
+
+        std::cout << std::right;
+
+        if (result.temperatureC >= 0) {
+            std::cout << std::fixed << std::setprecision(1) << std::setw(5) << result.temperatureC;
+        } else {
+            std::cout << std::setw(5) << "N/A";
+        }
+
+        std::cout << std::setw(5) << static_cast<int>(result.batteryLifePercent)
+                  << std::setw(7) << pwrStr
+                  << std::setw(8) << capStr
+                  << std::setw(6) << result.cycleCount
+                  << std::setw(6) << (result.isLowBattery ? 1 : 0)
+                  << std::endl;
+
+        Sleep(ms);
+    }
 }

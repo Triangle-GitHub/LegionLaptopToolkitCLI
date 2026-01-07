@@ -9,19 +9,12 @@ A lightweight, command-line-only tool to control a couple of features that are o
 
 ## 🛠 Features
 
-- Get current battery charging status (`ischarging`)
-- Get current battery mode: `Conservation`, `Normal`, or `RapidCharge`
-- Set battery mode via name or number:
-  - `1` / `Conservation`
-  - `2` / `Normal`
-  - `3` / `RapidCharge`
-- Get current keyboard backlight state: `Off`, `Low`, or `High`
-- Set keyboard backlight via name or number:
-  - `0` / `Off`
-  - `1` / `Low`
-  - `2` / `High`
-- Get or set OverDrive status (`on`/`off` or `1`/`0`)
-- Instantly turn off the display (`monitoroff`)
+- Get or set battery charging mode
+- Get detailed battery information with dynamic monitoring mode
+- Get current keyboard backlight state
+- Get or set keyboard white backlight
+- Get or set OverDrive status
+- Instantly turn off the display
 
 ---
 
@@ -44,6 +37,11 @@ lltc get batterymode   # or: lltc get bm
 lltc set batterymode Conservation   # or: lltc set bm 1
 lltc set batterymode Normal         # or: lltc set bm 2
 lltc set batterymode RapidCharge    # or: lltc set bm 3
+
+# Get detailed battery information
+lltc get batteryinformation             # or: lltc get bi
+lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1000ms by default)
+lltc get batteryinformation -dmon 500   # or: lltc get bi -dmon 500
 
 # Get current keyboard backlight state
 lltc get keyboardbacklight   # or: lltc get kb
@@ -85,7 +83,7 @@ This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE
 Open a terminal in the project root and run:
 
 ```bash
-g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion
+g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion -lsetupapi
 ```
 
 ### Option 2: Build via VS Code (for development)
@@ -113,7 +111,8 @@ g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemu
                 "-loleaut32",
                 "-lwbemuuid",
                 "-luuid",
-                "-lversion"
+                "-lversion",
+                "-lsetupapi"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
