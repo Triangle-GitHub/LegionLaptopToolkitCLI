@@ -7,6 +7,7 @@
 #include"LenovoOverdriveControl.hpp"
 #include"LenovoWhitekeyboardbacklightControl.hpp"
 #include"LenovoPowerModeControl.hpp"
+#include"LenovoHybridmodeControl.hpp"
 
 inline std::string toLower(const std::string& s);
 bool TurnOffMonitor();
@@ -20,6 +21,8 @@ bool GetFullBatteryInfo();
 void GetFullBatteryInfoDmon(int ms);
 bool GetPowerMode();
 bool SetPowerMode(int tar);
+bool GetGPUMode();
+bool SetGPUMode(int tar);
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -31,10 +34,12 @@ int main(int argc, char* argv[]) {
         << "  lltc get batteryinformation | bi\n"
         << "  lltc get batteryinformation -dmon\n"
         << "  lltc get powermode | pm\n"
+        << "  lltc get gpumode | gm\n"
         << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
         << "  lltc set overdrive <on|off|1|0>\n"
         << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n"
-        << "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n";
+        << "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n"
+        << "  lltc set gpumode <Hybrid|HybridIGPU|HybridAuto|dGPU|1|2|3|4>\n";
         return 1;
     }
     std::string cmd1 = toLower(argv[1]);
@@ -46,7 +51,7 @@ int main(int argc, char* argv[]) {
     // === lltc get ... ===
     if (cmd1 == "get") {
         if (argc < 3) {
-            std::cerr << "Error: 'get' requires a property (batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi, powermode/pm).\n";
+            std::cerr << "Error: 'get' requires a property (batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi, powermode/pm, gpumode/gm).\n";
             return 1;
         }
         std::string prop = toLower(argv[2]);
@@ -79,6 +84,8 @@ int main(int argc, char* argv[]) {
             return GetWhiteKeyboardBacklight() ? 0 : 1;
         } else if (prop == "powermode" || prop == "pm") {
             return GetPowerMode() ? 0 : 1;
+        } else if (prop == "gpumode" || prop == "gm") {
+            return GetGPUMode() ? 0 : 1;
         } else {
             std::cerr << "Error: unknown property '" << argv[2] << "'.\n";
             return 1;
@@ -91,6 +98,45 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::string prop = toLower(argv[2]);
+        
+        // --- GPU Mode ---
+        if (prop == "gpumode" || prop == "gm") {
+            if (argc < 4) {
+                std::cerr << "Error: missing GPU mode value.\n";
+                return 1;
+            }
+            std::string value = toLower(argv[3]);
+            int modeInt = -1;
+            
+            try {
+                size_t pos;
+                int num = std::stoi(value, &pos);
+                if (pos == value.size() && num >= 1 && num <= 4) {
+                    modeInt = num;
+                }
+            } catch (...) {
+                // not a number
+            }
+            
+            if (modeInt == -1) {
+                if (value == "hybrid") {
+                    modeInt = 1;
+                } else if (value == "hybridigpu") {
+                    modeInt = 2;
+                } else if (value == "hybridauto") {
+                    modeInt = 3;
+                } else if (value == "dgpu") {
+                    modeInt = 4;
+                }
+            }
+            
+            if (modeInt == -1) {
+                std::cerr << "Error: invalid GPU mode '" << argv[3]
+                    << "'. Use Hybrid/HybridIGPU/HybridAuto/dGPU or 1/2/3/4.\n";
+                return 1;
+            }
+            return SetGPUMode(modeInt) ? 0 : 1;
+        }
         
         // --- Power Mode ---
         if (prop == "powermode" || prop == "pm") {
@@ -217,7 +263,7 @@ int main(int argc, char* argv[]) {
             return SetOverdrive(enable) ? 0 : 1;
         }
         // --- Unknown property ---
-        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb) and 'overdrive' (od) can be set.\n";
+        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb), 'overdrive' (od), and 'gpumode' (gm) can be set.\n";
         return 1;
     }
     std::cerr << "Error: unknown command '" << argv[1] << "'.\n";
@@ -645,7 +691,7 @@ bool SetPowerMode(int tar) {
             break;
         case 254:
             mode = PowerMode::GodMode;
-            std::cerr << "Not supported.\n";
+            std::cerr << "GodMode not supported.\n";
             return false;
         default:
             std::cerr << "Invalid power mode.\n";
@@ -672,4 +718,96 @@ bool SetPowerMode(int tar) {
         std::cerr << "Switch failed.\n";
         return false;
     }
+}
+
+bool GetGPUMode() {
+    HybridModeState currentState;
+    HybridModeController controller;
+    
+    auto future = controller.GetHybridModeAsync();
+    auto [result, mode] = future.get();
+    
+    if (result == OperationResult::Success) {
+        currentState = mode;
+        
+        switch (currentState) {
+            case HybridModeState::On:
+                std::cout << "Hybrid\n";
+                break;
+            case HybridModeState::OnIGPUOnly:
+                std::cout << "Hybrid-iGPU\n";
+                break;
+            case HybridModeState::OnAuto:
+                std::cout << "Hybrid-Auto\n";
+                break;
+            case HybridModeState::Off:
+                std::cout << "dGPU\n";
+                break;
+        }
+        return true;
+    } else {
+        std::cerr << "Failed to get current GPU mode.\n";
+        return false;
+    }
+}
+
+bool SetGPUMode(int tar) {
+    HybridModeController controller;
+    HybridModeState targetMode;
+    
+    switch(tar) {
+        case 1: targetMode = HybridModeState::On; break;
+        case 2: targetMode = HybridModeState::OnIGPUOnly; break;
+        case 3: targetMode = HybridModeState::OnAuto; break;
+        case 4: targetMode = HybridModeState::Off; break;
+        default:
+            std::cerr << "Invalid GPU mode.\n";
+            return false;
+    }
+    
+    auto future_get = controller.GetHybridModeAsync();
+    auto [result_get, currentState] = future_get.get();
+    if (result_get != OperationResult::Success) {
+        std::cerr << "Failed to get current GPU mode.\n";
+        return false;
+    }
+
+    if (currentState == targetMode) {
+        std::cout << "Already in mode: ";
+        switch (targetMode) {
+            case HybridModeState::On: std::cout << "Hybrid\n"; break;
+            case HybridModeState::OnIGPUOnly: std::cout << "Hybrid-iGPU\n"; break;
+            case HybridModeState::OnAuto: std::cout << "Hybrid-Auto\n"; break;
+            case HybridModeState::Off: std::cout << "dGPU\n"; break;
+        }
+        return true;
+    }
+
+    auto future_set = controller.SetHybridModeAsync(targetMode);
+    OperationResult result_set = future_set.get();
+    if (result_set != OperationResult::Success) {
+        std::cerr << "Switch failed.\n";
+        return false;
+    }
+
+    const bool switchingToDGpu = (targetMode == HybridModeState::Off);
+    const bool switchingFromDGpu = (currentState == HybridModeState::Off);
+    const bool requiresReboot = switchingToDGpu || switchingFromDGpu;
+
+    switch (targetMode) {
+        case HybridModeState::On: std::cout << "Hybrid\n"; break;
+        case HybridModeState::OnIGPUOnly: std::cout << "Hybrid-iGPU\n"; break;
+        case HybridModeState::OnAuto: std::cout << "Hybrid-Auto\n"; break;
+        case HybridModeState::Off: std::cout << "dGPU\n"; break;
+    }
+
+    if (requiresReboot) {
+        std::cout << "\n*** SYSTEM RESTART REQUIRED ***\n";
+        std::cout << "Press ANY KEY to restart immediately...\n";
+        std::cin.get();
+        
+        std::system("shutdown /r /t 0");
+        return true;
+    }
+    return true;
 }

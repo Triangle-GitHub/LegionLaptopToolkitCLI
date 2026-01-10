@@ -10,6 +10,7 @@ A lightweight, command-line-only tool to control a couple of features that are o
 ## 🛠 Features
 
 - Get or set power mode (as well as power button color) 🔑
+- Get or set Hybrid GPU working mode 🔑
 - Get or set battery charging mode
 - Get or set keyboard white backlight
 - Get or set screen OverDrive status 🔑
@@ -34,6 +35,15 @@ lltc set powermode Quiet           # or: lltc set pm 1
 lltc set powermode Balance         # or: lltc set pm 2
 lltc set powermode Performance     # or: lltc set pm 3
 #lltc set powermode GodMode (coming soon...)
+
+# Get current gpu working mode
+lltc get gpumode   # or: lltc get gm
+
+# Set gpu working mode
+lltc set gpumode Hybrid            # or: lltc set gm 1
+lltc set gpumode HybridIGPU        # or: lltc set gm 2
+lltc set gpumode HybridAuto        # or: lltc set gm 3
+lltc set gpumode dGPU              # or: lltc set gm 4
 
 # Get current battery mode
 lltc get batterymode   # or: lltc get bm
