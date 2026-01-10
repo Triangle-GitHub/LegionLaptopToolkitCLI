@@ -2,6 +2,7 @@
 #include<iostream>
 #include<algorithm>
 #include<iomanip>
+#include<numeric>
 #include"LenovoBatteryControl.hpp"
 #include"LenovoOverdriveControl.hpp"
 #include"LenovoWhitekeyboardbacklightControl.hpp"
@@ -52,20 +53,20 @@ int main(int argc, char* argv[]) {
         
         if (prop == "batteryinformation" || prop == "bi") {
             if (argc >= 4 && std::string(argv[3]) == "-dmon") {
-                int refreshMs = 1000;
+                int refreshS = 0;
                 if (argc >= 5) {
                     try {
-                        refreshMs = std::stoi(argv[4]);
-                        if (refreshMs < 10) {
-                            std::cerr << "Error: refresh interval must be at least 10ms.\n";
+                        refreshS = std::stoi(argv[4]);
+                        if (refreshS < 1) {
+                            std::cerr << "Error: refresh interval must be at least 1s.\n";
                             return 1;
                         }
                     } catch (...) {
-                        std::cerr << "Error: invalid refresh interval '" << argv[4] << "'. Must be a number >= 10.\n";
+                        std::cerr << "Error: invalid refresh interval '" << argv[4] << "'. Must be a number >= 1.\n";
                         return 1;
                     }
                 }
-                GetFullBatteryInfoDmon(refreshMs);
+                GetFullBatteryInfoDmon(refreshS);
                 return 0;
             } else {
                 return GetFullBatteryInfo() ? 0 : 1;
@@ -445,61 +446,177 @@ bool GetFullBatteryInfo() {
     return true;
 }
 
-void GetFullBatteryInfoDmon(int ms) {
+void GetFullBatteryInfoDmon(int seconds) {
     GetFullBatteryInfo();
     std::cout << "======" << std::endl;
     
-    std::cout<<std::setfill(' ');
-    std::cout << std::right
-              << std::setw(5) << "temp"
-              << std::setw(5) << "pct"
-              << std::setw(7) << "pwr"
-              << std::setw(8) << "cap"
-              << std::setw(6) << "cycle"
-              << std::setw(6) << "islow"
-              << std::endl;
-    std::cout << std::right
-              << std::setw(5) << "(C)"
-              << std::setw(5) << "(%)"
-              << std::setw(7) << "(W)"
-              << std::setw(8) << "(Wh)"
-              << std::setw(6) << "(s)"
-              << std::setw(6) << "(0/1)"
-              << std::endl;
+    const int time_col_width = 20;
+    const int non_time_col_width = 8; // Unified width for all non-time columns
+    
+    std::cout << std::setfill(' ') << std::right;
+    
+    bool dft = false;
+    // Determine header format based on interval
+    if (seconds == 0) {
+        seconds = 1;
+        dft = true;
+        std::cout 
+            << std::setw(time_col_width) << " "
+            << std::setw(non_time_col_width) << "AC"
+            << std::setw(non_time_col_width) << "temp"
+            << std::setw(non_time_col_width) << "pct"
+            << std::setw(non_time_col_width) << "pwr"
+            << std::setw(non_time_col_width) << "cap"
+            << std::setw(non_time_col_width) << "cycle"
+            << std::setw(non_time_col_width) << "low"
+            << std::endl;
+        std::cout 
+            << std::setw(time_col_width) << " "
+            << std::setw(non_time_col_width) << " "
+            << std::setw(non_time_col_width) << "(C)"
+            << std::setw(non_time_col_width) << "(%)"
+            << std::setw(non_time_col_width) << "(W)"
+            << std::setw(non_time_col_width) << "(Wh)"
+            << std::setw(non_time_col_width) << "(s)"
+            << std::setw(non_time_col_width) << "(Y/N)"
+            << std::endl;
+    } else {
+        std::cout 
+            << std::setw(time_col_width) << " "
+            << std::setw(non_time_col_width) << "AC"
+            << std::setw(non_time_col_width) << "temp"
+            << std::setw(non_time_col_width) << "tempAvg"
+            << std::setw(non_time_col_width) << "percent"
+            << std::setw(non_time_col_width) << "power"
+            << std::setw(non_time_col_width) << "pwrAvg"
+            << std::setw(non_time_col_width) << "cap"
+            << std::setw(non_time_col_width) << "cycle"
+            << std::setw(non_time_col_width) << "lowCap"
+            << std::endl;
+        std::cout 
+            << std::setw(time_col_width) << " "
+            << std::setw(non_time_col_width) << " "
+            << std::setw(non_time_col_width) << "(C)"
+            << std::setw(non_time_col_width) << "(C)"
+            << std::setw(non_time_col_width) << "(%)"
+            << std::setw(non_time_col_width) << "(W)"
+            << std::setw(non_time_col_width) << "(W)"
+            << std::setw(non_time_col_width) << "(Wh)"
+            << std::setw(non_time_col_width) << "(s)"
+            << std::setw(non_time_col_width) << ""
+            << std::endl;
+    }
+
+    int count = 0;
+    std::vector<double> tempSamples;
+    std::vector<double> powerSamples;
 
     while (true) {
+        SYSTEMTIME st;
+        GetLocalTime(&st);
+        char timeBuf[21]; // Increased buffer size for space separator
+        snprintf(timeBuf, sizeof(timeBuf), "%04d-%02d-%02d %02d:%02d:%02d", 
+                st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+        std::string timeStr = timeBuf;
+
         BatteryInfoResult result = {0};
         if (!LenovoBatteryControl::GetBatteryInformation(result)) {
-            Sleep(500);
+            Sleep(1000);
             continue;
         }
 
-        double pwrW = result.dischargeRate / 1000.0;
-        char pwrBuf[12];
-        snprintf(pwrBuf, sizeof(pwrBuf), "%+.2f", pwrW);
-        std::string pwrStr = pwrBuf;
+        double currentTemp = result.temperatureC;
+        double currentPower = result.dischargeRate / 1000.0;
 
-        double capWh = result.currentCapacity / 1000.0;
-        char capBuf[12];
-        snprintf(capBuf, sizeof(capBuf), "%.2f", capWh);
-        std::string capStr = capBuf;
-
-        std::cout << std::right;
-
-        if (result.temperatureC >= 0) {
-            std::cout << std::fixed << std::setprecision(1) << std::setw(5) << result.temperatureC;
-        } else {
-            std::cout << std::setw(5) << "N/A";
+        // Collect samples for averaging when interval > 1 second
+        if (!dft) {
+            if (currentTemp >= 0) {
+                tempSamples.push_back(currentTemp);
+            }
+            powerSamples.push_back(currentPower);
         }
 
-        std::cout << std::setw(5) << static_cast<int>(result.batteryLifePercent)
-                  << std::setw(7) << pwrStr
-                  << std::setw(8) << capStr
-                  << std::setw(6) << result.cycleCount
-                  << std::setw(6) << (result.isLowBattery ? 1 : 0)
-                  << std::endl;
+        // Output logic
+        if (seconds == 1 || count == seconds - 1) {
+            double avgTemp = -1.0; // Invalid marker
+            double avgPower = 0.0;
+            
+            if (!dft && !tempSamples.empty()) {
+                avgTemp = std::accumulate(tempSamples.begin(), tempSamples.end(), 0.0) / tempSamples.size();
+            }
+            if (!dft && !powerSamples.empty()) {
+                avgPower = std::accumulate(powerSamples.begin(), powerSamples.end(), 0.0) / powerSamples.size();
+            }
 
-        Sleep(ms);
+            // Time column
+            std::cout << std::setw(time_col_width) << timeStr;
+            
+            // AC status column
+            std::cout << std::setw(non_time_col_width) << (result.isAcConnected ? "Y" : "N");
+            
+            // Temperature column
+            if (currentTemp >= 0) {
+                char tempBuf[12];
+                snprintf(tempBuf, sizeof(tempBuf), "%.1f", currentTemp);
+                std::cout << std::setw(non_time_col_width) << tempBuf;
+            } else {
+                std::cout << std::setw(non_time_col_width) << "N/A";
+            }
+            
+            // Average temperature column (only when seconds > 1)
+            if (!dft) {
+                char avgTempBuf[12];
+                if (avgTemp >= 0) {
+                    snprintf(avgTempBuf, sizeof(avgTempBuf), "%.3f", avgTemp);
+                } else {
+                    snprintf(avgTempBuf, sizeof(avgTempBuf), "N/A");
+                }
+                std::cout << std::setw(non_time_col_width) << avgTempBuf;
+            }
+            
+            // Percentage column
+            char pctBuf[4];
+            snprintf(pctBuf, sizeof(pctBuf), "%d", static_cast<int>(result.batteryLifePercent));
+            std::cout << std::setw(non_time_col_width) << pctBuf;
+            
+            // Power column
+            char pwrBuf[12];
+            snprintf(pwrBuf, sizeof(pwrBuf), "%+.2f", currentPower);
+            std::cout << std::setw(non_time_col_width) << pwrBuf;
+            
+            // Average power column (only when seconds > 1)
+            if (!dft) {
+                char avgPwrBuf[12];
+                snprintf(avgPwrBuf, sizeof(avgPwrBuf), "%+.3f", avgPower);
+                std::cout << std::setw(non_time_col_width) << avgPwrBuf;
+            }
+            
+            // Capacity column
+            double capWh = result.currentCapacity / 1000.0;
+            char capBuf[12];
+            snprintf(capBuf, sizeof(capBuf), "%.2f", capWh);
+            std::cout << std::setw(non_time_col_width) << capBuf;
+            
+            // Cycle count column
+            char cycleBuf[12];
+            snprintf(cycleBuf, sizeof(cycleBuf), "%lu", result.cycleCount);
+            std::cout << std::setw(non_time_col_width) << cycleBuf;
+            
+            // Low battery column
+            std::cout << std::setw(non_time_col_width) << (result.isLowBattery ? "Y" : "N")
+                      << std::endl;
+            
+            // Reset for next interval
+            if (!dft) {
+                tempSamples.clear();
+                powerSamples.clear();
+            }
+            count = 0;
+        } else {
+            count++;
+        }
+
+        Sleep(1000); // Sleep for 1 second between readings
     }
 }
 

@@ -60,8 +60,8 @@ lltc set overdrive off # or: lltc set od 0
 
 # Get detailed battery information
 lltc get batteryinformation             # or: lltc get bi
-lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1000ms by default)
-lltc get batteryinformation -dmon 500   # or: lltc get bi -dmon 500
+lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1s by default)
+lltc get batteryinformation -dmon 3     # or: lltc get bi -dmon 3
 
 # Turn off display
 lltc monitoroff        # or: lltc mo
