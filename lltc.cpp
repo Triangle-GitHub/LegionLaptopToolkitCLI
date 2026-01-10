@@ -514,7 +514,7 @@ void GetFullBatteryInfoDmon(int seconds) {
     while (true) {
         SYSTEMTIME st;
         GetLocalTime(&st);
-        char timeBuf[21]; // Increased buffer size for space separator
+        char timeBuf[21];
         snprintf(timeBuf, sizeof(timeBuf), "%04d-%02d-%02d %02d:%02d:%02d", 
                 st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
         std::string timeStr = timeBuf;
@@ -528,7 +528,6 @@ void GetFullBatteryInfoDmon(int seconds) {
         double currentTemp = result.temperatureC;
         double currentPower = result.dischargeRate / 1000.0;
 
-        // Collect samples for averaging when interval > 1 second
         if (!dft) {
             if (currentTemp >= 0) {
                 tempSamples.push_back(currentTemp);
@@ -536,7 +535,6 @@ void GetFullBatteryInfoDmon(int seconds) {
             powerSamples.push_back(currentPower);
         }
 
-        // Output logic
         if (seconds == 1 || count == seconds - 1) {
             double avgTemp = -1.0; // Invalid marker
             double avgPower = 0.0;
@@ -548,13 +546,10 @@ void GetFullBatteryInfoDmon(int seconds) {
                 avgPower = std::accumulate(powerSamples.begin(), powerSamples.end(), 0.0) / powerSamples.size();
             }
 
-            // Time column
             std::cout << std::setw(time_col_width) << timeStr;
             
-            // AC status column
             std::cout << std::setw(non_time_col_width) << (result.isAcConnected ? "Y" : "N");
             
-            // Temperature column
             if (currentTemp >= 0) {
                 char tempBuf[12];
                 snprintf(tempBuf, sizeof(tempBuf), "%.1f", currentTemp);
@@ -563,7 +558,6 @@ void GetFullBatteryInfoDmon(int seconds) {
                 std::cout << std::setw(non_time_col_width) << "N/A";
             }
             
-            // Average temperature column (only when seconds > 1)
             if (!dft) {
                 char avgTempBuf[12];
                 if (avgTemp >= 0) {
@@ -574,39 +568,32 @@ void GetFullBatteryInfoDmon(int seconds) {
                 std::cout << std::setw(non_time_col_width) << avgTempBuf;
             }
             
-            // Percentage column
             char pctBuf[4];
             snprintf(pctBuf, sizeof(pctBuf), "%d", static_cast<int>(result.batteryLifePercent));
             std::cout << std::setw(non_time_col_width) << pctBuf;
             
-            // Power column
             char pwrBuf[12];
             snprintf(pwrBuf, sizeof(pwrBuf), "%+.2f", currentPower);
             std::cout << std::setw(non_time_col_width) << pwrBuf;
             
-            // Average power column (only when seconds > 1)
             if (!dft) {
                 char avgPwrBuf[12];
                 snprintf(avgPwrBuf, sizeof(avgPwrBuf), "%+.3f", avgPower);
                 std::cout << std::setw(non_time_col_width) << avgPwrBuf;
             }
             
-            // Capacity column
             double capWh = result.currentCapacity / 1000.0;
             char capBuf[12];
             snprintf(capBuf, sizeof(capBuf), "%.2f", capWh);
             std::cout << std::setw(non_time_col_width) << capBuf;
             
-            // Cycle count column
             char cycleBuf[12];
             snprintf(cycleBuf, sizeof(cycleBuf), "%lu", result.cycleCount);
             std::cout << std::setw(non_time_col_width) << cycleBuf;
             
-            // Low battery column
             std::cout << std::setw(non_time_col_width) << (result.isLowBattery ? "Y" : "N")
                       << std::endl;
             
-            // Reset for next interval
             if (!dft) {
                 tempSamples.clear();
                 powerSamples.clear();
