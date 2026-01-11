@@ -14,6 +14,7 @@ A lightweight, command-line-only tool to control a couple of features that are o
 - Get or set battery charging mode
 - Get or set keyboard white backlight
 - Get or set screen OverDrive status 🔑
+- Get or set Always on USB status
 - Get detailed battery information (with dynamic monitoring mode)
 - Instantly turn off the display
 
@@ -28,45 +29,53 @@ A lightweight, command-line-only tool to control a couple of features that are o
 lltc
 
 # Get current power mode
-lltc get powermode   # or: lltc get pm
+lltc get powermode                      # or: lltc get pm
 
 # Set power mode
-lltc set powermode Quiet           # or: lltc set pm 1
-lltc set powermode Balance         # or: lltc set pm 2
-lltc set powermode Performance     # or: lltc set pm 3
+lltc set powermode Quiet                # or: lltc set pm 1
+lltc set powermode Balance              # or: lltc set pm 2
+lltc set powermode Performance          # or: lltc set pm 3
 #lltc set powermode GodMode (coming soon...)
 
 # Get current gpu working mode
-lltc get gpumode   # or: lltc get gm
+lltc get gpumode                        # or: lltc get gm
 
 # Set gpu working mode
-lltc set gpumode Hybrid            # or: lltc set gm 1
-lltc set gpumode HybridIGPU        # or: lltc set gm 2
-lltc set gpumode HybridAuto        # or: lltc set gm 3
-lltc set gpumode dGPU              # or: lltc set gm 4
+lltc set gpumode Hybrid                 # or: lltc set gm 1
+lltc set gpumode HybridIGPU             # or: lltc set gm 2
+lltc set gpumode HybridAuto             # or: lltc set gm 3
+lltc set gpumode dGPU                   # or: lltc set gm 4
 
 # Get current battery mode
-lltc get batterymode   # or: lltc get bm
+lltc get batterymode                    # or: lltc get bm
 
 # Set battery mode
-lltc set batterymode Conservation   # or: lltc set bm 1
-lltc set batterymode Normal         # or: lltc set bm 2
-lltc set batterymode RapidCharge    # or: lltc set bm 3
+lltc set batterymode Conservation       # or: lltc set bm 1
+lltc set batterymode Normal             # or: lltc set bm 2
+lltc set batterymode RapidCharge        # or: lltc set bm 3
 
 # Get current keyboard backlight state
-lltc get keyboardbacklight   # or: lltc get kb
+lltc get keyboardbacklight              # or: lltc get kb
 
 # Set keyboard backlight
-lltc set keyboardbacklight Off     # or: lltc set kb 0
-lltc set keyboardbacklight Low     # or: lltc set kb 1
-lltc set keyboardbacklight High    # or: lltc set kb 2
+lltc set keyboardbacklight Off          # or: lltc set kb 0
+lltc set keyboardbacklight Low          # or: lltc set kb 1
+lltc set keyboardbacklight High         # or: lltc set kb 2
 
 # Get OverDrive status
-lltc get overdrive     # or: lltc get od
+lltc get overdrive                      # or: lltc get od
 
 # Set OverDrive
-lltc set overdrive on  # or: lltc set od 1
-lltc set overdrive off # or: lltc set od 0
+lltc set overdrive on                   # or: lltc set od 1
+lltc set overdrive off                  # or: lltc set od 0
+
+# Get Always on USB status
+lltc get alwaysonusb                    # or: lltc get ao
+
+# Set Always on USB status
+lltc set alwaysonusb Off                # or: lltc set ao 0
+lltc set alwaysonusb OnWhenSleeping     # or: lltc set ao 1
+lltc set alwaysonusb OnAlways           # or: lltc set ao 2
 
 # Get detailed battery information
 lltc get batteryinformation             # or: lltc get bi
@@ -74,7 +83,7 @@ lltc get batteryinformation -dmon       # monitoring mode (refresh rate 1s by de
 lltc get batteryinformation -dmon 3     # or: lltc get bi -dmon 3
 
 # Turn off display
-lltc monitoroff        # or: lltc mo
+lltc monitoroff                         # or: lltc mo
 ```
 
 ---

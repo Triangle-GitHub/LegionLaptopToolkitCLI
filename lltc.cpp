@@ -8,6 +8,7 @@
 #include"LenovoWhitekeyboardbacklightControl.hpp"
 #include"LenovoPowerModeControl.hpp"
 #include"LenovoHybridmodeControl.hpp"
+#include"LenovoAlwaysonusbControl.hpp"
 
 inline std::string toLower(const std::string& s);
 bool TurnOffMonitor();
@@ -23,6 +24,8 @@ bool GetPowerMode();
 bool SetPowerMode(int tar);
 bool GetGPUMode();
 bool SetGPUMode(int tar);
+bool GetAlwaysOnUSB();
+bool SetAlwaysOnUSB(int tar);
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -35,11 +38,13 @@ int main(int argc, char* argv[]) {
         << "  lltc get batteryinformation -dmon\n"
         << "  lltc get powermode | pm\n"
         << "  lltc get gpumode | gm\n"
+        << "  lltc get alwaysonusb | ao\n"
         << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
         << "  lltc set overdrive <on|off|1|0>\n"
         << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n"
         << "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n"
-        << "  lltc set gpumode <Hybrid|HybridIGPU|HybridAuto|dGPU|1|2|3|4>\n";
+        << "  lltc set gpumode <Hybrid|HybridIGPU|HybridAuto|dGPU|1|2|3|4>\n"
+        << "  lltc set alwaysonusb <Off|OnWhenSleeping|OnAlways|0|1|2>\n";
         return 1;
     }
     std::string cmd1 = toLower(argv[1]);
@@ -57,7 +62,7 @@ int main(int argc, char* argv[]) {
         std::string prop = toLower(argv[2]);
         
         if (prop == "batteryinformation" || prop == "bi") {
-            if (argc >= 4 && std::string(argv[3]) == "-dmon") {
+            if (argc >= 4 && toLower(argv[3]) == "-dmon") {
                 int refreshS = 0;
                 if (argc >= 5) {
                     try {
@@ -86,6 +91,8 @@ int main(int argc, char* argv[]) {
             return GetPowerMode() ? 0 : 1;
         } else if (prop == "gpumode" || prop == "gm") {
             return GetGPUMode() ? 0 : 1;
+        } else if (prop == "alwaysonusb" || prop == "ao") {
+            return GetAlwaysOnUSB() ? 0 : 1;
         } else {
             std::cerr << "Error: unknown property '" << argv[2] << "'.\n";
             return 1;
@@ -98,6 +105,43 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::string prop = toLower(argv[2]);
+
+        // --- Always on USB ---
+        if (prop == "alwaysonusb" || prop == "ao") {
+            if (argc < 4) {
+                std::cerr << "Error: missing AlwaysOnUSB value.\n";
+                return 1;
+            }
+            std::string value = toLower(argv[3]);
+            int modeInt = -1;
+            
+            try {
+                size_t pos;
+                int num = std::stoi(value, &pos);
+                if (pos == value.size() && num >= 0 && num <= 2) {
+                    modeInt = num;
+                }
+            } catch (...) {
+                // not a number
+            }
+            
+            if (modeInt == -1) {
+                if (value == "off") {
+                    modeInt = 0;
+                } else if (value == "onwhensleeping" || value == "sleeping") {
+                    modeInt = 1;
+                } else if (value == "onalways" || value == "always") {
+                    modeInt = 2;
+                }
+            }
+            
+            if (modeInt == -1) {
+                std::cerr << "Error: invalid AlwaysOnUSB mode '" << argv[3]
+                    << "'. Use Off/OnWhenSleeping/OnAlways or 0/1/2.\n";
+                return 1;
+            }
+            return SetAlwaysOnUSB(modeInt) ? 0 : 1;
+        }
         
         // --- GPU Mode ---
         if (prop == "gpumode" || prop == "gm") {
@@ -263,7 +307,8 @@ int main(int argc, char* argv[]) {
             return SetOverdrive(enable) ? 0 : 1;
         }
         // --- Unknown property ---
-        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb), 'overdrive' (od), and 'gpumode' (gm) can be set.\n";
+        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb), "
+                  << "'overdrive' (od), 'gpumode' (gm), and 'alwaysonusb' (ao) can be set.\n";
         return 1;
     }
     std::cerr << "Error: unknown command '" << argv[1] << "'.\n";
@@ -808,6 +853,64 @@ bool SetGPUMode(int tar) {
         
         std::system("shutdown /r /t 0");
         return true;
+    }
+    return true;
+}
+
+bool GetAlwaysOnUSB() {
+    auto currentState = LenovoFeatures::GetAlwaysOnUSBState();
+    if (currentState.has_value()) {
+        switch (currentState.value()) {
+            case AlwaysOnUSBState::Off:
+                std::cout << "Off\n";
+                break;
+            case AlwaysOnUSBState::OnWhenSleeping:
+                std::cout << "On, when sleeping\n";
+                break;
+            case AlwaysOnUSBState::OnAlways:
+                std::cout << "On, always\n";
+                break;
+        }
+    } else {
+        std::cerr << "Failed to get AlwaysOnUSB state.\n";
+        return false;
+    }
+    return true;
+}
+
+bool SetAlwaysOnUSB(int tar) {
+    AlwaysOnUSBState state;
+    switch(tar) {
+        case 0:
+            state = AlwaysOnUSBState::Off;
+            break;
+        case 1:
+            state = AlwaysOnUSBState::OnWhenSleeping;
+            break;
+        case 2:
+            state = AlwaysOnUSBState::OnAlways;
+            break;
+        default:
+            std::cerr << "Invalid AlwaysOnUSB state. Use 0 for Off, 1 for On when sleeping, or 2 for On always.\n";
+            return false;
+    }
+    
+    bool success = LenovoFeatures::SetAlwaysOnUSBState(state);
+    if (success) {
+        switch (state) {
+            case AlwaysOnUSBState::Off:
+                std::cout << "Off\n";
+                break;
+            case AlwaysOnUSBState::OnWhenSleeping:
+                std::cout << "On, when sleeping\n";
+                break;
+            case AlwaysOnUSBState::OnAlways:
+                std::cout << "On, always\n";
+                break;
+        }
+    } else {
+        std::cerr << "Failed to set AlwaysOnUSB state.\n";
+        return false;
     }
     return true;
 }

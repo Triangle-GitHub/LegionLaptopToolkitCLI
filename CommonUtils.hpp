@@ -507,4 +507,66 @@ namespace LenovoCommonUtils {
         pInParams->Release();
         return SUCCEEDED(hr);
     }
+    inline int CallWmiMethodWithNamedParam(
+        IWbemServices* pServices,
+        const std::wstring& instancePath,
+        const wchar_t* methodName,
+        const wchar_t* paramName,
+        int paramValue,
+        const wchar_t* resultPropertyName = L"Value"
+    ) {
+        if (!pServices || instancePath.empty()) return -1;
+        
+        IWbemClassObject* pClass = nullptr;
+        HRESULT hr = pServices->GetObject(
+            _bstr_t(L"__PARAMETERS"), 
+            0, 
+            nullptr, 
+            &pClass, 
+            nullptr
+        );
+        if (FAILED(hr) || !pClass) return -1;
+        
+        IWbemClassObject* pInParams = nullptr;
+        hr = pClass->SpawnInstance(0, &pInParams);
+        pClass->Release();
+        if (FAILED(hr) || !pInParams) return -1;
+        
+        VARIANT vtParam;
+        VariantInit(&vtParam);
+        vtParam.vt = VT_I4;
+        vtParam.lVal = paramValue;
+        hr = pInParams->Put(paramName, 0, &vtParam, 0);
+        VariantClear(&vtParam);
+        if (FAILED(hr)) {
+            pInParams->Release();
+            return -1;
+        }
+        
+        IWbemClassObject* pOutParams = nullptr;
+        hr = pServices->ExecMethod(
+            _bstr_t(instancePath.c_str()),
+            _bstr_t(methodName),
+            0,
+            nullptr,
+            pInParams,
+            &pOutParams,
+            nullptr
+        );
+        pInParams->Release();
+        
+        if (FAILED(hr) || !pOutParams) return -1;
+        
+        VARIANT vtResult;
+        VariantInit(&vtResult);
+        hr = pOutParams->Get(resultPropertyName, 0, &vtResult, nullptr, nullptr);
+        int result = -1;
+        if (SUCCEEDED(hr) && vtResult.vt == VT_I4) {
+            result = vtResult.lVal;
+        }
+        VariantClear(&vtResult);
+        pOutParams->Release();
+        
+        return result;
+    }
 } // namespace LenovoCommonUtils
