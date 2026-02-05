@@ -1,16 +1,18 @@
-#include<windows.h>
-#include<iostream>
-#include<algorithm>
-#include<iomanip>
-#include<numeric>
-#include"LenovoBatteryControl.hpp"
-#include"LenovoOverdriveControl.hpp"
-#include"LenovoWhitekeyboardbacklightControl.hpp"
-#include"LenovoPowerModeControl.hpp"
-#include"LenovoHybridmodeControl.hpp"
-#include"LenovoAlwaysonusbControl.hpp"
+#include <iomanip>
+#include <print>
+#include <algorithm>
+#include <numeric>
 
-inline std::string toLower(const std::string& s);
+#include <windows.h>
+
+#include "LenovoBatteryControl.hpp"
+#include "LenovoOverdriveControl.hpp"
+#include "LenovoWhitekeyboardbacklightControl.hpp"
+#include "LenovoPowerModeControl.hpp"
+#include "LenovoHybridmodeControl.hpp"
+#include "LenovoAlwaysonusbControl.hpp"
+
+inline std::string toLower(std::string_view sv);
 bool TurnOffMonitor();
 bool GetBatteryMode();
 bool SetBatteryMode(int tar);
@@ -29,22 +31,22 @@ bool SetAlwaysOnUSB(int tar);
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cout << "Usage:\n"
-        << "  lltc monitoroff | mo\n"
-        << "  lltc get batterymode | bm\n"
-        << "  lltc get overdrive | od\n"
-        << "  lltc get keyboardbacklight | kb\n"
-        << "  lltc get batteryinformation | bi\n"
-        << "  lltc get batteryinformation -dmon\n"
-        << "  lltc get powermode | pm\n"
-        << "  lltc get gpumode | gm\n"
-        << "  lltc get alwaysonusb | ao\n"
-        << "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
-        << "  lltc set overdrive <on|off|1|0>\n"
-        << "  lltc set keyboardbacklight <off|low|high|0|1|2>\n"
-        << "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n"
-        << "  lltc set gpumode <Hybrid|HybridIGPU|HybridAuto|dGPU|1|2|3|4>\n"
-        << "  lltc set alwaysonusb <Off|OnWhenSleeping|OnAlways|0|1|2>\n";
+        std::print("Usage:\n"
+                   "  lltc monitoroff | mo\n"
+                   "  lltc get batterymode | bm\n"
+                   "  lltc get overdrive | od\n"
+                   "  lltc get keyboardbacklight | kb\n"
+                   "  lltc get batteryinformation | bi\n"
+                   "  lltc get batteryinformation -dmon\n"
+                   "  lltc get powermode | pm\n"
+                   "  lltc get gpumode | gm\n"
+                   "  lltc get alwaysonusb | ao\n"
+                   "  lltc set batterymode <Conservation|Normal|RapidCharge|1|2|3>\n"
+                   "  lltc set overdrive <on|off|1|0>\n"
+                   "  lltc set keyboardbacklight <off|low|high|0|1|2>\n"
+                   "  lltc set powermode <Quiet|Balance|Performance|GodMode|1|2|3|254>\n"
+                   "  lltc set gpumode <Hybrid|HybridIGPU|HybridAuto|dGPU|1|2|3|4>\n"
+                   "  lltc set alwaysonusb <Off|OnWhenSleeping|OnAlways|0|1|2>\n");
         return 1;
     }
     std::string cmd1 = toLower(argv[1]);
@@ -56,7 +58,7 @@ int main(int argc, char* argv[]) {
     // === lltc get ... ===
     if (cmd1 == "get") {
         if (argc < 3) {
-            std::cerr << "Error: 'get' requires a property (batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi, powermode/pm, gpumode/gm).\n";
+            std::print(stderr, "Error: 'get' requires a property (batterymode/bm, overdrive/od, keyboardbacklight/kb, batteryinformation/bi, powermode/pm, gpumode/gm).\n");
             return 1;
         }
         std::string prop = toLower(argv[2]);
@@ -68,11 +70,11 @@ int main(int argc, char* argv[]) {
                     try {
                         refreshS = std::stoi(argv[4]);
                         if (refreshS < 1) {
-                            std::cerr << "Error: refresh interval must be at least 1s.\n";
+                            std::print(stderr, "Error: refresh interval must be at least 1s.\n");
                             return 1;
                         }
                     } catch (...) {
-                        std::cerr << "Error: invalid refresh interval '" << argv[4] << "'. Must be a number >= 1.\n";
+                        std::print(stderr, "Error: invalid refresh interval '{}'. Must be a number >= 1.\n", argv[4]);
                         return 1;
                     }
                 }
@@ -94,14 +96,14 @@ int main(int argc, char* argv[]) {
         } else if (prop == "alwaysonusb" || prop == "ao") {
             return GetAlwaysOnUSB() ? 0 : 1;
         } else {
-            std::cerr << "Error: unknown property '" << argv[2] << "'.\n";
+            std::print(stderr, "Error: unknown property '{}'.\n", argv[2]);
             return 1;
         }
     }
     // === lltc set ... ===
     if (cmd1 == "set") {
         if (argc < 3) {
-            std::cerr << "Error: 'set' requires a property.\n";
+            std::print(stderr, "Error: 'set' requires a property.\n");
             return 1;
         }
         std::string prop = toLower(argv[2]);
@@ -109,7 +111,7 @@ int main(int argc, char* argv[]) {
         // --- Always on USB ---
         if (prop == "alwaysonusb" || prop == "ao") {
             if (argc < 4) {
-                std::cerr << "Error: missing AlwaysOnUSB value.\n";
+                std::print(stderr, "Error: missing AlwaysOnUSB value.\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -136,8 +138,7 @@ int main(int argc, char* argv[]) {
             }
             
             if (modeInt == -1) {
-                std::cerr << "Error: invalid AlwaysOnUSB mode '" << argv[3]
-                    << "'. Use Off/OnWhenSleeping/OnAlways or 0/1/2.\n";
+                std::print(stderr, "Error: invalid AlwaysOnUSB mode '{}'. Use Off/OnWhenSleeping/OnAlways or 0/1/2.\n", argv[3]);
                 return 1;
             }
             return SetAlwaysOnUSB(modeInt) ? 0 : 1;
@@ -146,7 +147,7 @@ int main(int argc, char* argv[]) {
         // --- GPU Mode ---
         if (prop == "gpumode" || prop == "gm") {
             if (argc < 4) {
-                std::cerr << "Error: missing GPU mode value.\n";
+                std::print(stderr, "Error: missing GPU mode value.\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -175,8 +176,7 @@ int main(int argc, char* argv[]) {
             }
             
             if (modeInt == -1) {
-                std::cerr << "Error: invalid GPU mode '" << argv[3]
-                    << "'. Use Hybrid/HybridIGPU/HybridAuto/dGPU or 1/2/3/4.\n";
+                std::print(stderr, "Error: invalid GPU mode '{}'. Use Hybrid/HybridIGPU/HybridAuto/dGPU or 1/2/3/4.\n", argv[3]);
                 return 1;
             }
             return SetGPUMode(modeInt) ? 0 : 1;
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
         // --- Power Mode ---
         if (prop == "powermode" || prop == "pm") {
             if (argc < 4) {
-                std::cerr << "Error: missing power mode value.\n";
+                std::print(stderr, "Error: missing power mode value.\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -216,8 +216,7 @@ int main(int argc, char* argv[]) {
             }
             
             if (modeInt == -1) {
-                std::cerr << "Error: invalid power mode '" << argv[3]
-                    << "'. Use Quiet/Balance/Performance/GodMode or 1/2/3/254.\n";
+                std::print(stderr, "Error: invalid power mode '{}'. Use Quiet/Balance/Performance/GodMode or 1/2/3/254.\n", argv[3]);
                 return 1;
             }
             return SetPowerMode(modeInt) ? 0 : 1;
@@ -226,7 +225,7 @@ int main(int argc, char* argv[]) {
         // --- Battery Mode ---
         if (prop == "batterymode" || prop == "bm") {
             if (argc < 4) {
-                std::cerr << "Error: missing battery mode value.\n";
+                std::print(stderr, "Error: missing battery mode value.\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -248,8 +247,7 @@ int main(int argc, char* argv[]) {
                 } else if (value == "rapidcharge") {
                     modeInt = 3;
                 } else {
-                    std::cerr << "Error: invalid battery mode '" << argv[3]
-                        << "'. Use Conservation/Normal/RapidCharge or 1/2/3.\n";
+                    std::print(stderr, "Error: invalid battery mode '{}'. Use Conservation/Normal/RapidCharge or 1/2/3.\n", argv[3]);
                     return 1;
                 }
             }
@@ -258,7 +256,7 @@ int main(int argc, char* argv[]) {
         // --- Keyboard Backlight ---
         if (prop == "keyboardbacklight" || prop == "kb") {
             if (argc < 4) {
-                std::cerr << "Error: missing keyboard backlight value.\n";
+                std::print(stderr, "Error: missing keyboard backlight value.\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -280,8 +278,7 @@ int main(int argc, char* argv[]) {
                 } else if (value == "high") {
                     levelInt = 2;
                 } else {
-                    std::cerr << "Error: invalid keyboard backlight level '" << argv[3]
-                        << "'. Use off/low/high or 0/1/2.\n";
+                    std::print(stderr, "Error: invalid keyboard backlight level '{}'. Use off/low/high or 0/1/2.\n", argv[3]);
                     return 1;
                 }
             }
@@ -290,7 +287,7 @@ int main(int argc, char* argv[]) {
         // --- Overdrive (od / overdrive) ---
         if (prop == "overdrive" || prop == "od") {
             if (argc < 4) {
-                std::cerr << "Error: missing overdrive value (on/off/1/0).\n";
+                std::print(stderr, "Error: missing overdrive value (on/off/1/0).\n");
                 return 1;
             }
             std::string value = toLower(argv[3]);
@@ -300,23 +297,22 @@ int main(int argc, char* argv[]) {
             } else if (value == "off" || value == "0") {
                 enable = 0;
             } else {
-                std::cerr << "Error: invalid overdrive value '" << argv[3]
-                    << "'. Use on/off or 1/0.\n";
+                std::print(stderr, "Error: invalid overdrive value '{}'. Use on/off or 1/0.\n", argv[3]);
                 return 1;
             }
             return SetOverdrive(enable) ? 0 : 1;
         }
         // --- Unknown property ---
-        std::cerr << "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb), "
-                  << "'overdrive' (od), 'gpumode' (gm), and 'alwaysonusb' (ao) can be set.\n";
+        std::print(stderr, "Error: only 'powermode' (pm), 'batterymode' (bm), 'keyboardbacklight' (kb), "
+                  "'overdrive' (od), 'gpumode' (gm), and 'alwaysonusb' (ao) can be set.\n");
         return 1;
     }
-    std::cerr << "Error: unknown command '" << argv[1] << "'.\n";
+    std::print(stderr, "Error: unknown command '{}'.\n", argv[1]);
     return 1;
 }
 
-inline std::string toLower(const std::string& s) {
-    std::string r = s;
+inline std::string toLower(std::string_view sv) {
+    std::string r(sv);
     std::transform(r.begin(), r.end(), r.begin(),
         [](unsigned char c) { return std::tolower(c); });
     return r;
@@ -332,13 +328,13 @@ bool GetBatteryMode(){
     if (LenovoBatteryControl::GetCurrentBatteryMode(currentMode)) {
         switch (currentMode) {
             case BatteryState::Conservation:
-                std::cout << "Conservation\n";
+                std::print("Conservation\n");
                 break;
             case BatteryState::Normal:
-                std::cout << "Normal\n";
+                std::print("Normal\n");
                 break;
             case BatteryState::RapidCharge:
-                std::cout << "RapidCharge\n";
+                std::print("RapidCharge\n");
                 break;
         }
     } else return false;
@@ -358,24 +354,24 @@ bool SetBatteryMode(int tar){
             state=BatteryState::RapidCharge;
             break;
         default:
-            std::cerr<<"Invalid battery mode.\n";
+            std::print(stderr, "Invalid battery mode.\n");
             return false;
     }
     bool success = LenovoBatteryControl::SetBatteryMode(state);
     if (success) {
         switch (state) {
             case BatteryState::Conservation:
-                std::cout << "Conservation\n";
+                std::print("Conservation\n");
                 break;
             case BatteryState::Normal:
-                std::cout << "Normal\n";
+                std::print("Normal\n");
                 break;
             case BatteryState::RapidCharge:
-                std::cout << "RapidCharge\n";
+                std::print("RapidCharge\n");
                 break;
         }
     } else {
-        std::cerr << "Switch failed.\n";
+        std::print(stderr, "Switch failed.\n");
         return false;
     }
     return true;
@@ -383,26 +379,26 @@ bool SetBatteryMode(int tar){
 
 bool SetOverdrive(int enable) {
     if (enable != 0 && enable != 1) {
-        std::cerr << "Not supported or permission denined.\n";
+        std::print(stderr, "Not supported or permission denined.\n");
         return false;
     }
 
     OverDriveController controller;
     if (!controller.IsOverDriveSupported()) {
-        std::cerr << "Not supported or permission denined.\n";
+        std::print(stderr, "Not supported or permission denined.\n");
         return false;
     }
 
     HRESULT hr = controller.SetOverDriveStatus(enable == 1);
     if (SUCCEEDED(hr)) {
         if (enable == 1) {
-            std::cout << "Overdrive enabled\n";
+            std::print("Overdrive enabled\n");
         } else {
-            std::cout << "Overdrive disabled\n";
+            std::print("Overdrive disabled\n");
         }
         return true;
     } else {
-        std::cerr << "Failed to set Overdrive status.\n";
+        std::print(stderr, "Failed to set Overdrive status.\n");
         return false;
     }
 }
@@ -410,19 +406,19 @@ bool SetOverdrive(int enable) {
 bool GetOverdrive() {
     OverDriveController controller;
     if (!controller.IsOverDriveSupported()) {
-        std::cerr << "Not supported or permission denined.\n";
+        std::print(stderr, "Not supported or permission denined.\n");
         return false;
     }
 
     int status = controller.GetOverDriveStatus();
     if (status == 1) {
-        std::cout << "Overdrive ON\n";
+        std::print("Overdrive ON\n");
         return true;
     } else if (status == 0) {
-        std::cout << "Overdrive OFF\n";
+        std::print("Overdrive OFF\n");
         return true;
     } else {
-        std::cerr << "Failed to get Overdrive status.\n";
+        std::print(stderr, "Failed to get Overdrive status.\n");
         return false;
     }
 }
@@ -432,17 +428,17 @@ bool GetWhiteKeyboardBacklight() {
     if (LenovoWhiteKeyboardBacklightControl::GetState(currentState)) {
         switch (currentState) {
             case WhiteKeyboardBacklightState::Off:
-                std::cout << "Off\n";
+                std::print(stdout, "Off\n");
                 break;
             case WhiteKeyboardBacklightState::Low:
-                std::cout << "Low\n";
+                std::print(stdout, "Low\n");
                 break;
             case WhiteKeyboardBacklightState::High:
-                std::cout << "High\n";
+                std::print(stdout, "High\n");
                 break;
         }
     } else {
-        std::cerr << "Failed to get keyboard backlight state.\n";
+        std::print(stderr, "Failed to get keyboard backlight state.\n");
         return false;
     }
     return true;
@@ -461,7 +457,7 @@ bool SetWhiteKeyboardBacklight(int tar) {
             state = WhiteKeyboardBacklightState::High;
             break;
         default:
-            std::cerr << "Invalid backlight level. Use 0 for Off, 1 for Low, or 2 for High.\n";
+            std::print(stderr, "Invalid backlight level. Use 0 for Off, 1 for Low, or 2 for High.\n");
             return false;
     }
     
@@ -469,17 +465,17 @@ bool SetWhiteKeyboardBacklight(int tar) {
     if (success) {
         switch (state) {
             case WhiteKeyboardBacklightState::Off:
-                std::cout << "Off\n";
+                std::print(stdout, "Off\n");
                 break;
             case WhiteKeyboardBacklightState::Low:
-                std::cout << "Low\n";
+                std::print(stdout, "Low\n");
                 break;
             case WhiteKeyboardBacklightState::High:
-                std::cout << "High\n";
+                std::print(stdout, "High\n");
                 break;
         }
     } else {
-        std::cerr << "Failed to set keyboard backlight state.\n";
+        std::print(stderr, "Failed to set keyboard backlight state.\n");
         return false;
     }
     return true;
@@ -489,113 +485,109 @@ bool GetFullBatteryInfo() {
     BatteryInfoResult result = {0};
 
     if (!LenovoBatteryControl::GetBatteryInformation(result)) {
-        std::cerr << "Failed to get battery information" << std::endl;
+        std::print(stderr, "Failed to get battery information\n");
         return false;
     }
-    std::cout << "AC Connected: " << (result.isAcConnected ? "Yes" : "No") << std::endl;
-    std::cout << "Battery Life: " << static_cast<int>(result.batteryLifePercent) << "%" << std::endl;
+    std::print("AC Connected: {}\n", result.isAcConnected ? "Yes" : "No");
+    std::print("Battery Life: {}%\n", static_cast<int>(result.batteryLifePercent));
     
     if (result.batteryLifeTime != 0xFFFFFFFF) {
-        std::cout << "Estimated Remaining Time: " 
-                  << result.batteryLifeTime / 3600 << "h " 
-                  << (result.batteryLifeTime % 3600) / 60 << "m" << std::endl;
+        std::print("Estimated Remaining Time: {}h {}m\n",
+            result.batteryLifeTime / 3600,
+            (result.batteryLifeTime % 3600) / 60);
     }
     
-    std::cout << "Discharge Rate: " << result.dischargeRate << " mW" << std::endl;
-    std::cout << "Current Capacity: " << result.currentCapacity << " mWh" << std::endl;
-    std::cout << "Designed Capacity: " << result.designedCapacity << " mWh" << std::endl;
-    std::cout << "Full Charged Capacity: " << result.fullChargedCapacity << " mWh" << std::endl;
-    std::cout << "Cycle Count: " << result.cycleCount << std::endl;
-    std::cout << "Low Battery Alert: " << (result.isLowBattery ? "Yes" : "No") << std::endl;
+    std::print("Discharge Rate: {} mW\n", result.dischargeRate);
+    std::print("Current Capacity: {} mWh\n", result.currentCapacity);
+    std::print("Designed Capacity: {} mWh\n", result.designedCapacity);
+    std::print("Full Charged Capacity: {} mWh\n", result.fullChargedCapacity);
+    std::print("Cycle Count: {}\n", result.cycleCount);
+    std::print("Low Battery Alert: {}\n", result.isLowBattery ? "Yes" : "No");
 
-    std::cout << "======" << std::endl;
+    std::print("======\n");
     
     if (result.temperatureC >= 0) {
-        std::cout << "Battery Temperature: " << std::fixed << std::setprecision(1) 
-                  << result.temperatureC << " C" << std::endl;
+        std::print("Battery Temperature: {:.1f} C\n", result.temperatureC);
     } else {
-        std::cout << "Battery Temperature: Not available" << std::endl;
+        std::print("Battery Temperature: Not available\n");
     }
 
     if (result.manufactureDate.wYear != 0) {
-        std::cout << "Manufacture Date: " 
-                  << result.manufactureDate.wYear << "-" 
-                  << std::setw(2) << std::setfill('0') << result.manufactureDate.wMonth << "-" 
-                  << std::setw(2) << std::setfill('0') << result.manufactureDate.wDay << std::endl;
+        std::print("Manufacture Date: {}-{:02}-{:02}\n",
+            result.manufactureDate.wYear,
+            result.manufactureDate.wMonth,
+            result.manufactureDate.wDay);
     } else {
-        std::cout << "Manufacture Date: Not available" << std::endl;
+        std::print("Manufacture Date: Not available\n");
     }
 
     if (result.firstUseDate.wYear != 0) {
-        std::cout << "First Use Date: " 
-                  << result.firstUseDate.wYear << "-" 
-                  << std::setw(2) << std::setfill('0') << result.firstUseDate.wMonth << "-" 
-                  << std::setw(2) << std::setfill('0') << result.firstUseDate.wDay << std::endl;
+        std::print("First Use Date: {}-{:02}-{:02}\n",
+            result.firstUseDate.wYear,
+            result.firstUseDate.wMonth,
+            result.firstUseDate.wDay);
     } else {
-        std::cout << "First Use Date: Not available" << std::endl;
+        std::print("First Use Date: Not available\n");
     }
     return true;
 }
 
 void GetFullBatteryInfoDmon(int seconds) {
     GetFullBatteryInfo();
-    std::cout << "======" << std::endl;
+    std::print("======\n");
     
-    const int time_col_width = 20;
-    const int non_time_col_width = 8; // Unified width for all non-time columns
-    
-    std::cout << std::setfill(' ') << std::right;
+    constexpr int TIME_COL = 20;
+    constexpr int DATA_COL = 8;
     
     bool dft = false;
-    // Determine header format based on interval
     if (seconds == 0) {
         seconds = 1;
         dft = true;
-        std::cout 
-            << std::setw(time_col_width) << " "
-            << std::setw(non_time_col_width) << "AC"
-            << std::setw(non_time_col_width) << "temp"
-            << std::setw(non_time_col_width) << "pct"
-            << std::setw(non_time_col_width) << "pwr"
-            << std::setw(non_time_col_width) << "cap"
-            << std::setw(non_time_col_width) << "cycle"
-            << std::setw(non_time_col_width) << "low"
-            << std::endl;
-        std::cout 
-            << std::setw(time_col_width) << " "
-            << std::setw(non_time_col_width) << " "
-            << std::setw(non_time_col_width) << "(C)"
-            << std::setw(non_time_col_width) << "(%)"
-            << std::setw(non_time_col_width) << "(W)"
-            << std::setw(non_time_col_width) << "(Wh)"
-            << std::setw(non_time_col_width) << "(s)"
-            << std::setw(non_time_col_width) << "(Y/N)"
-            << std::endl;
+        std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+            " ", TIME_COL,
+            "AC", DATA_COL,
+            "temp", DATA_COL,
+            "pct", DATA_COL,
+            "pwr", DATA_COL,
+            "cap", DATA_COL,
+            "cycle", DATA_COL,
+            "low", DATA_COL
+        );
+        std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+            " ", TIME_COL,
+            "", DATA_COL,
+            "(C)", DATA_COL,
+            "(%)", DATA_COL,
+            "(W)", DATA_COL,
+            "(Wh)", DATA_COL,
+            "(s)", DATA_COL,
+            "(Y/N)", DATA_COL
+        );
     } else {
-        std::cout 
-            << std::setw(time_col_width) << " "
-            << std::setw(non_time_col_width) << "AC"
-            << std::setw(non_time_col_width) << "temp"
-            << std::setw(non_time_col_width) << "tempAvg"
-            << std::setw(non_time_col_width) << "percent"
-            << std::setw(non_time_col_width) << "power"
-            << std::setw(non_time_col_width) << "pwrAvg"
-            << std::setw(non_time_col_width) << "cap"
-            << std::setw(non_time_col_width) << "cycle"
-            << std::setw(non_time_col_width) << "lowCap"
-            << std::endl;
-        std::cout 
-            << std::setw(time_col_width) << " "
-            << std::setw(non_time_col_width) << " "
-            << std::setw(non_time_col_width) << "(C)"
-            << std::setw(non_time_col_width) << "(C)"
-            << std::setw(non_time_col_width) << "(%)"
-            << std::setw(non_time_col_width) << "(W)"
-            << std::setw(non_time_col_width) << "(W)"
-            << std::setw(non_time_col_width) << "(Wh)"
-            << std::setw(non_time_col_width) << "(s)"
-            << std::setw(non_time_col_width) << ""
-            << std::endl;
+        std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+            " ", TIME_COL,
+            "AC", DATA_COL,
+            "temp", DATA_COL,
+            "tempAvg", DATA_COL,
+            "percent", DATA_COL,
+            "power", DATA_COL,
+            "pwrAvg", DATA_COL,
+            "cap", DATA_COL,
+            "cycle", DATA_COL,
+            "lowCap", DATA_COL
+        );
+        std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+            " ", TIME_COL,
+            "", DATA_COL,
+            "(C)", DATA_COL,
+            "(C)", DATA_COL,
+            "(%)", DATA_COL,
+            "(W)", DATA_COL,
+            "(W)", DATA_COL,
+            "(Wh)", DATA_COL,
+            "(s)", DATA_COL,
+            "(Y/N)", DATA_COL
+        );
     }
 
     int count = 0;
@@ -605,10 +597,15 @@ void GetFullBatteryInfoDmon(int seconds) {
     while (true) {
         SYSTEMTIME st;
         GetLocalTime(&st);
-        char timeBuf[21];
-        snprintf(timeBuf, sizeof(timeBuf), "%04d-%02d-%02d %02d:%02d:%02d", 
-                st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-        std::string timeStr = timeBuf;
+        std::string timeStr = std::format(
+            "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}",
+            static_cast<int>(st.wYear),
+            static_cast<int>(st.wMonth),
+            static_cast<int>(st.wDay),
+            static_cast<int>(st.wHour),
+            static_cast<int>(st.wMinute),
+            static_cast<int>(st.wSecond)
+        );
 
         BatteryInfoResult result = {0};
         if (!LenovoBatteryControl::GetBatteryInformation(result)) {
@@ -618,16 +615,15 @@ void GetFullBatteryInfoDmon(int seconds) {
 
         double currentTemp = result.temperatureC;
         double currentPower = result.dischargeRate / 1000.0;
+        double capWh = result.currentCapacity / 1000.0;
 
         if (!dft) {
-            if (currentTemp >= 0) {
-                tempSamples.push_back(currentTemp);
-            }
+            if (currentTemp >= 0) tempSamples.push_back(currentTemp);
             powerSamples.push_back(currentPower);
         }
 
         if (seconds == 1 || count == seconds - 1) {
-            double avgTemp = -1.0; // Invalid marker
+            double avgTemp = -1.0;
             double avgPower = 0.0;
             
             if (!dft && !tempSamples.empty()) {
@@ -637,55 +633,46 @@ void GetFullBatteryInfoDmon(int seconds) {
                 avgPower = std::accumulate(powerSamples.begin(), powerSamples.end(), 0.0) / powerSamples.size();
             }
 
-            std::cout << std::setw(time_col_width) << timeStr;
-            
-            std::cout << std::setw(non_time_col_width) << (result.isAcConnected ? "Y" : "N");
-            
-            if (currentTemp >= 0) {
-                char tempBuf[12];
-                snprintf(tempBuf, sizeof(tempBuf), "%.1f", currentTemp);
-                std::cout << std::setw(non_time_col_width) << tempBuf;
+            std::string acStr = result.isAcConnected ? "Y" : "N";
+            std::string tempStr = (currentTemp >= 0) 
+                ? std::format("{:.1f}", currentTemp) 
+                : "N/A";
+            std::string pctStr = std::to_string(static_cast<int>(result.batteryLifePercent));
+            std::string pwrStr = std::format("{:+.2f}", currentPower);
+            std::string capStr = std::format("{:.2f}", capWh);
+            std::string cycleStr = std::to_string(result.cycleCount);
+            std::string lowStr = result.isLowBattery ? "Y" : "N";
+
+            if (dft) {
+                std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+                    timeStr, TIME_COL,
+                    acStr, DATA_COL,
+                    tempStr, DATA_COL,
+                    pctStr, DATA_COL,
+                    pwrStr, DATA_COL,
+                    capStr, DATA_COL,
+                    cycleStr, DATA_COL,
+                    lowStr, DATA_COL
+                );
             } else {
-                std::cout << std::setw(non_time_col_width) << "N/A";
-            }
-            
-            if (!dft) {
-                char avgTempBuf[12];
-                if (avgTemp >= 0) {
-                    snprintf(avgTempBuf, sizeof(avgTempBuf), "%.3f", avgTemp);
-                } else {
-                    snprintf(avgTempBuf, sizeof(avgTempBuf), "N/A");
-                }
-                std::cout << std::setw(non_time_col_width) << avgTempBuf;
-            }
-            
-            char pctBuf[4];
-            snprintf(pctBuf, sizeof(pctBuf), "%d", static_cast<int>(result.batteryLifePercent));
-            std::cout << std::setw(non_time_col_width) << pctBuf;
-            
-            char pwrBuf[12];
-            snprintf(pwrBuf, sizeof(pwrBuf), "%+.2f", currentPower);
-            std::cout << std::setw(non_time_col_width) << pwrBuf;
-            
-            if (!dft) {
-                char avgPwrBuf[12];
-                snprintf(avgPwrBuf, sizeof(avgPwrBuf), "%+.3f", avgPower);
-                std::cout << std::setw(non_time_col_width) << avgPwrBuf;
-            }
-            
-            double capWh = result.currentCapacity / 1000.0;
-            char capBuf[12];
-            snprintf(capBuf, sizeof(capBuf), "%.2f", capWh);
-            std::cout << std::setw(non_time_col_width) << capBuf;
-            
-            char cycleBuf[12];
-            snprintf(cycleBuf, sizeof(cycleBuf), "%lu", result.cycleCount);
-            std::cout << std::setw(non_time_col_width) << cycleBuf;
-            
-            std::cout << std::setw(non_time_col_width) << (result.isLowBattery ? "Y" : "N")
-                      << std::endl;
-            
-            if (!dft) {
+                std::string avgTempStr = (avgTemp >= 0)
+                    ? std::format("{:.3f}", avgTemp)
+                    : "N/A";
+                std::string avgPwrStr = std::format("{:+.3f}", avgPower);
+
+                std::print("{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}{:>{}s}\n",
+                    timeStr, TIME_COL,
+                    acStr, DATA_COL,
+                    tempStr, DATA_COL,
+                    avgTempStr, DATA_COL,
+                    pctStr, DATA_COL,
+                    pwrStr, DATA_COL,
+                    avgPwrStr, DATA_COL,
+                    capStr, DATA_COL,
+                    cycleStr, DATA_COL,
+                    lowStr, DATA_COL
+                );
+                
                 tempSamples.clear();
                 powerSamples.clear();
             }
@@ -694,7 +681,7 @@ void GetFullBatteryInfoDmon(int seconds) {
             count++;
         }
 
-        Sleep(1000); // Sleep for 1 second between readings
+        Sleep(1000);
     }
 }
 
@@ -703,21 +690,21 @@ bool GetPowerMode() {
     if (LegionPowerMode::GetPowerMode(currentMode)) {
         switch (currentMode) {
             case PowerMode::Quiet:
-                std::cout << "Quiet\n";
+                std::print("Quiet\n");
                 break;
             case PowerMode::Balance:
-                std::cout << "Balance\n";
+                std::print("Balance\n");
                 break;
             case PowerMode::Performance:
-                std::cout << "Performance\n";
+                std::print("Performance\n");
                 break;
             case PowerMode::GodMode:
-                std::cout << "GodMode\n";
+                std::print("GodMode\n");
                 break;
         }
         return true;
     } else {
-        std::cerr << "Failed to get current power mode.\n";
+        std::print(stderr, "Failed to get current power mode.\n");
         return false;
     }
 }
@@ -736,31 +723,31 @@ bool SetPowerMode(int tar) {
             break;
         case 254:
             mode = PowerMode::GodMode;
-            std::cerr << "GodMode not supported.\n";
+            std::print(stderr, "GodMode not supported.\n");
             return false;
         default:
-            std::cerr << "Invalid power mode.\n";
+            std::print(stderr, "Invalid power mode.\n");
             return false;
     }
     
     if (LegionPowerMode::SetPowerMode(mode)) {
         switch (mode) {
             case PowerMode::Quiet:
-                std::cout << "Quiet\n";
+                std::print("Quiet\n");
                 break;
             case PowerMode::Balance:
-                std::cout << "Balance\n";
+                std::print("Balance\n");
                 break;
             case PowerMode::Performance:
-                std::cout << "Performance\n";
+                std::print("Performance\n");
                 break;
             case PowerMode::GodMode:
-                std::cout << "GodMode\n";
+                std::print("GodMode\n");
                 break;
         }
         return true;
     } else {
-        std::cerr << "Switch failed.\n";
+        std::print(stderr, "Switch failed.\n");
         return false;
     }
 }
@@ -777,21 +764,21 @@ bool GetGPUMode() {
         
         switch (currentState) {
             case HybridModeState::On:
-                std::cout << "Hybrid\n";
+                std::print("Hybrid\n");
                 break;
             case HybridModeState::OnIGPUOnly:
-                std::cout << "Hybrid-iGPU\n";
+                std::print("Hybrid-iGPU\n");
                 break;
             case HybridModeState::OnAuto:
-                std::cout << "Hybrid-Auto\n";
+                std::print("Hybrid-Auto\n");
                 break;
             case HybridModeState::Off:
-                std::cout << "dGPU\n";
+                std::print("dGPU\n");
                 break;
         }
         return true;
     } else {
-        std::cerr << "Failed to get current GPU mode.\n";
+        std::print(stderr, "Failed to get current GPU mode.\n");
         return false;
     }
 }
@@ -806,24 +793,24 @@ bool SetGPUMode(int tar) {
         case 3: targetMode = HybridModeState::OnAuto; break;
         case 4: targetMode = HybridModeState::Off; break;
         default:
-            std::cerr << "Invalid GPU mode.\n";
+            std::print(stderr, "Invalid GPU mode.\n");
             return false;
     }
     
     auto future_get = controller.GetHybridModeAsync();
     auto [result_get, currentState] = future_get.get();
     if (result_get != OperationResult::Success) {
-        std::cerr << "Failed to get current GPU mode.\n";
+        std::print(stderr, "Failed to get current GPU mode.\n");
         return false;
     }
 
     if (currentState == targetMode) {
-        std::cout << "Already in mode: ";
+        std::print("Already in mode: ");
         switch (targetMode) {
-            case HybridModeState::On: std::cout << "Hybrid\n"; break;
-            case HybridModeState::OnIGPUOnly: std::cout << "Hybrid-iGPU\n"; break;
-            case HybridModeState::OnAuto: std::cout << "Hybrid-Auto\n"; break;
-            case HybridModeState::Off: std::cout << "dGPU\n"; break;
+            case HybridModeState::On: std::print("Hybrid\n"); break;
+            case HybridModeState::OnIGPUOnly: std::print("Hybrid-iGPU\n"); break;
+            case HybridModeState::OnAuto: std::print("Hybrid-Auto\n"); break;
+            case HybridModeState::Off: std::print("dGPU\n"); break;
         }
         return true;
     }
@@ -831,7 +818,7 @@ bool SetGPUMode(int tar) {
     auto future_set = controller.SetHybridModeAsync(targetMode);
     OperationResult result_set = future_set.get();
     if (result_set != OperationResult::Success) {
-        std::cerr << "Switch failed.\n";
+        std::print(stderr, "Switch failed.\n");
         return false;
     }
 
@@ -840,15 +827,15 @@ bool SetGPUMode(int tar) {
     const bool requiresReboot = switchingToDGpu || switchingFromDGpu;
 
     switch (targetMode) {
-        case HybridModeState::On: std::cout << "Hybrid\n"; break;
-        case HybridModeState::OnIGPUOnly: std::cout << "Hybrid-iGPU\n"; break;
-        case HybridModeState::OnAuto: std::cout << "Hybrid-Auto\n"; break;
-        case HybridModeState::Off: std::cout << "dGPU\n"; break;
+        case HybridModeState::On: std::print("Hybrid\n"); break;
+        case HybridModeState::OnIGPUOnly: std::print("Hybrid-iGPU\n"); break;
+        case HybridModeState::OnAuto: std::print("Hybrid-Auto\n"); break;
+        case HybridModeState::Off: std::print("dGPU\n"); break;
     }
 
     if (requiresReboot) {
-        std::cout << "\n*** SYSTEM RESTART REQUIRED ***\n";
-        std::cout << "Press ANY KEY to restart immediately...\n";
+        std::print("\n*** SYSTEM RESTART REQUIRED ***\n");
+        std::print("Press ANY KEY to restart immediately...\n");
         std::cin.get();
         
         std::system("shutdown /r /t 0");
@@ -862,17 +849,17 @@ bool GetAlwaysOnUSB() {
     if (currentState.has_value()) {
         switch (currentState.value()) {
             case AlwaysOnUSBState::Off:
-                std::cout << "Off\n";
+                std::print("Off\n");
                 break;
             case AlwaysOnUSBState::OnWhenSleeping:
-                std::cout << "On, when sleeping\n";
+                std::print("On, when sleeping\n");
                 break;
             case AlwaysOnUSBState::OnAlways:
-                std::cout << "On, always\n";
+                std::print("On, always\n");
                 break;
         }
     } else {
-        std::cerr << "Failed to get AlwaysOnUSB state.\n";
+        std::print(stderr, "Failed to get AlwaysOnUSB state.\n");
         return false;
     }
     return true;
@@ -891,7 +878,7 @@ bool SetAlwaysOnUSB(int tar) {
             state = AlwaysOnUSBState::OnAlways;
             break;
         default:
-            std::cerr << "Invalid AlwaysOnUSB state. Use 0 for Off, 1 for On when sleeping, or 2 for On always.\n";
+            std::print(stderr, "Invalid AlwaysOnUSB state. Use 0 for Off, 1 for On when sleeping, or 2 for On always.\n");
             return false;
     }
     
@@ -899,17 +886,17 @@ bool SetAlwaysOnUSB(int tar) {
     if (success) {
         switch (state) {
             case AlwaysOnUSBState::Off:
-                std::cout << "Off\n";
+                std::print("Off\n");
                 break;
             case AlwaysOnUSBState::OnWhenSleeping:
-                std::cout << "On, when sleeping\n";
+                std::print("On, when sleeping\n");
                 break;
             case AlwaysOnUSBState::OnAlways:
-                std::cout << "On, always\n";
+                std::print("On, always\n");
                 break;
         }
     } else {
-        std::cerr << "Failed to set AlwaysOnUSB state.\n";
+        std::print(stderr, "Failed to set AlwaysOnUSB state.\n");
         return false;
     }
     return true;

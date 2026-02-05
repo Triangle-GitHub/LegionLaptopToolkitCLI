@@ -18,8 +18,8 @@
 .DS_Store
 Thumbs.db
 
-# abandoned
-abandoned/
+# scratchpad
+scratchpad/
 
 # test
 test.cpp

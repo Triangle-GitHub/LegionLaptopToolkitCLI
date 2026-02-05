@@ -98,17 +98,17 @@ lltc monitoroff                         # or: lltc mo
 
 ## 📦 Building from Source
 
-This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE.
+This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE. **Windows-only.**
 
 ### Prerequisites
 - [MinGW-w64](https://www.mingw-w64.org/)
-- `g++` in your `PATH`
+- `g++` (version **15.2.0**) in your `PATH`
 
 ### Option 1: Build via Terminal
 Open a terminal in the project root and run:
 
 ```bash
-g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemuuid -luuid -lversion -lsetupapi -lpowrprof
+g++ -std=c++26 -O2 -Wall -o lltc.exe lltc.cpp -static -s -lole32 -loleaut32 -lwbemuuid -luuid -lsetupapi -lpowrprof -lversion -lstdc++exp-luuid -lversion -lsetupapi -lpowrprof
 ```
 
 ### Option 2: Build via VS Code (for development)
@@ -124,21 +124,21 @@ g++ -O2 -s -static -Wall -Wextra -o lltc.exe lltc.cpp -lole32 -loleaut32 -lwbemu
             "command": "g++",
             "args": [
                 "-fdiagnostics-color=always",
+                "-std=c++26",
                 "-O2",
-                "-s",
-                "-static",
                 "-Wall",
-                "-Wextra",
-                "-o",
-                "${workspaceFolder}/lltc.exe",
+                "-o", "${workspaceFolder}/lltc.exe",
                 "${workspaceFolder}/lltc.cpp",
+                "-static",
+                "-s",
                 "-lole32",
                 "-loleaut32",
                 "-lwbemuuid",
                 "-luuid",
-                "-lversion",
                 "-lsetupapi",
-                "-lpowrprof"
+                "-lpowrprof",
+                "-lversion",
+                "-lstdc++exp"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -179,6 +179,7 @@ While LLTC shares a similar goal — lightweight control of Legion laptop featur
 - [ ] Implement Always-on-USB control
 - [ ] Implement Instant-Boot control
 - [ ] Implement Flip-to-Start control
+- [ ] Improve code quality
 
 ---
 
