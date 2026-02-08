@@ -108,7 +108,7 @@ This project is developed with **VS Code + GCC (MinGW-w64)** and requires no IDE
 Open a terminal in the project root and run:
 
 ```bash
-g++ -std=c++26 -O2 -Wall -o lltc.exe lltc.cpp -static -s -lole32 -loleaut32 -lwbemuuid -luuid -lsetupapi -lpowrprof -lversion -lstdc++exp-luuid -lversion -lsetupapi -lpowrprof
+g++ -std=c++26 -O2 -Wall -o lltc.exe lltc.cpp -static -s -lole32 -loleaut32 -lwbemuuid -luuid -lsetupapi -lpowrprof -lversion -lstdc++exp
 ```
 
 ### Option 2: Build via VS Code (for development)

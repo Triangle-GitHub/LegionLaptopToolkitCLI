@@ -1,151 +1,122 @@
 #pragma once
-#include <windows.h>
-#include <wbemidl.h>
-#include <comdef.h>
-#include <vector>
-#include <string>
-#include <optional>
-#include <thread>
-#include <chrono>
-#include <stdexcept>
+
 #include "CommonUtils.hpp"
+#include <optional>
+#include <iostream>
 
-enum class PowerMode {
-    Quiet = 1,
-    Balance = 2,
-    Performance = 3,
-    GodMode = 254
-};
-
-namespace LegionPowerMode {
-
-namespace {
-    const std::vector<std::wstring> WmiClassNames = {
-        L"LENOVO_GAMEZONE_DATA",
-        L"Lenovo_GameZone_Data"
-    };
-
-    std::optional<PowerMode> InternalGetPowerMode(IWbemServices* pSvc) {
-        using namespace LenovoCommonUtils;
-        
-        auto instancePath = GetFirstWmiInstancePathRel(pSvc, WmiClassNames);
-        if (instancePath.empty()) {
-            return std::nullopt;
-        }
-        
-        // 调用GetSmartFanMode方法
-        IWbemClassObject* pOutParams = nullptr;
-        HRESULT hr = pSvc->ExecMethod(
-            _bstr_t(instancePath.c_str()),
-            _bstr_t(L"GetSmartFanMode"),
-            0,
-            nullptr,
-            nullptr,
-            &pOutParams,
-            nullptr
-        );
-        
-        if (FAILED(hr) || !pOutParams) {
-            return std::nullopt;
-        }
-        
-        VARIANT vtProp;
-        VariantInit(&vtProp);
-        hr = pOutParams->Get(L"Data", 0, &vtProp, 0, 0);
-        pOutParams->Release();
-        
-        if (SUCCEEDED(hr) && vtProp.vt == VT_I4) {
-            int mode = vtProp.lVal;
-            VariantClear(&vtProp);
-            if ((mode >= 1 && mode <= 3) || mode == 254) {
-                return static_cast<PowerMode>(mode);
-            }
-        }
-        VariantClear(&vtProp);
-        
-        return std::nullopt;
-    }
+// Declarations
+namespace LLTCPowerMode {
+    inline std::expected<PowerMode, ResultState> GetState() noexcept;
+    inline std::expected<void, ResultState> SetState(PowerMode mode) noexcept;
 }
 
-bool GetPowerMode(PowerMode& mode) {
-    using namespace LenovoCommonUtils;
-    
-    HRESULT hr = InitializeCOMWithoutSecurity();
-    if (FAILED(hr)) {
-        return false;
-    }
-    
-    IWbemLocator* pLoc = nullptr;
-    IWbemServices* pSvc = nullptr;
-    
-    bool result = false;
-    hr = ConnectToWMI(&pLoc, &pSvc);
-    if (SUCCEEDED(hr) && pSvc) {
-        auto currentMode = InternalGetPowerMode(pSvc);
-        if (currentMode.has_value()) {
-            mode = currentMode.value();
-            result = true;
-        }
-        
-        pSvc->Release();
-        pSvc = nullptr;
-    }
-    
-    if (pLoc) {
-        pLoc->Release();
-        pLoc = nullptr;
-    }
-    
-    UninitializeCOM();
-    return result;
-}
-
-bool SetPowerMode(PowerMode mode) {
-    using namespace LenovoCommonUtils;
-    
-    HRESULT hr = InitializeCOMWithoutSecurity();
-    if (FAILED(hr)) {
-        return false;
-    }
-    
-    IWbemLocator* pLoc = nullptr;
-    IWbemServices* pSvc = nullptr;
-    
-    bool result = false;
-    hr = ConnectToWMI(&pLoc, &pSvc);
-    if (SUCCEEDED(hr) && pSvc) {
-        auto instancePath = GetFirstWmiInstancePathRel(pSvc, WmiClassNames);
-        if (!instancePath.empty()) {
-            /* 
-            std::optional<PowerMode> currentMode = InternalGetPowerMode(pSvc);
-            if (currentMode == PowerMode::Quiet && mode == PowerMode::Performance) {
-                if (!CallWmiMethodWithIntParamFromParameters(pSvc, instancePath, L"SetSmartFanMode", static_cast<int>(PowerMode::Balance))) {
-                    goto cleanup;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(300));
-            }
-            */
+// Definitions
+namespace LLTCPowerMode {
+    namespace {
+        const std::vector<std::wstring> WmiClassNames = {
+            L"LENOVO_GAMEZONE_DATA",
+            L"Lenovo_GameZone_Data"
+        };
+        std::optional<PowerMode> InternalGetPowerMode(IWbemServices* pSvc) {
+            using namespace LLTCCommonUtils;
             
-            result = CallWmiMethodWithIntParamFromParameters(
-                pSvc, 
-                instancePath, 
-                L"SetSmartFanMode", 
-                static_cast<int>(mode)
+            auto instancePath = GetFirstWmiInstancePath(pSvc, WmiClassNames, WmiPathType::Relative);
+            if (instancePath.empty()) {
+                return std::nullopt;
+            }
+            
+            IWbemClassObject* pOutParams = nullptr;
+            HRESULT hr = pSvc->ExecMethod(
+                _bstr_t(instancePath.c_str()),
+                _bstr_t(L"GetSmartFanMode"),
+                0,
+                nullptr,
+                nullptr,
+                &pOutParams,
+                nullptr
             );
+            
+            if (FAILED(hr) || !pOutParams) {
+                return std::nullopt;
+            }
+            
+            VARIANT vtProp;
+            VariantInit(&vtProp);
+            hr = pOutParams->Get(L"Data", 0, &vtProp, 0, 0);
+            pOutParams->Release();
+            
+            if (SUCCEEDED(hr) && vtProp.vt == VT_I4) {
+                int mode = vtProp.lVal;
+                VariantClear(&vtProp);
+                if ((mode >= 1 && mode <= 3) || mode == 254) {
+                    return static_cast<PowerMode>(mode);
+                }
+            }
+            VariantClear(&vtProp);
+            
+            return std::nullopt;
+        }
+    }   // namespace
+
+    inline std::expected<PowerMode, ResultState> GetState() noexcept {
+        HRESULT hr = LLTCCommonUtils::InitializeCOM();
+        if (FAILED(hr)) {
+            return std::unexpected(ResultState::Failed);
         }
         
-        // cleanup:
-        pSvc->Release();
-        pSvc = nullptr;
+        IWbemLocator* pLoc = nullptr;
+        IWbemServices* pSvc = nullptr;
+        
+        hr = LLTCCommonUtils::ConnectToWMI(&pLoc, &pSvc);
+        if (SUCCEEDED(hr) && pSvc) {
+            auto currentMode = InternalGetPowerMode(pSvc);
+            if (currentMode.has_value()) {
+                return currentMode.value();
+            }
+        }
+        LLTCCommonUtils::UninitializeCOM();
+        return std::unexpected(ResultState::Failed);
     }
-    
-    if (pLoc) {
-        pLoc->Release();
-        pLoc = nullptr;
+
+    inline std::expected<void, ResultState> SetState(PowerMode mode) noexcept {
+        if(mode == PowerMode::GodMode)
+            return std::unexpected(ResultState::NotSupported);
+        
+        HRESULT hr = LLTCCommonUtils::InitializeCOM();
+        if (FAILED(hr)) {
+            return std::unexpected(ResultState::Failed);
+        }
+        
+        IWbemLocator* pLoc = nullptr;
+        IWbemServices* pSvc = nullptr;
+        
+        bool result = false;
+        hr = LLTCCommonUtils::ConnectToWMI(&pLoc, &pSvc);
+        if (SUCCEEDED(hr) && pSvc) {
+            auto instancePath = LLTCCommonUtils::GetFirstWmiInstancePath(pSvc, WmiClassNames, LLTCCommonUtils::WmiPathType::Relative);
+            if (!instancePath.empty()) {
+                /* 
+                std::optional<PowerMode> currentMode = InternalGetPowerMode(pSvc);
+                if (currentMode == PowerMode::Quiet && mode == PowerMode::Performance) {
+                    if (!CallWmiMethodWithIntParamFromParameters(pSvc, instancePath, L"SetSmartFanMode", static_cast<int>(PowerMode::Balance))) {
+                        goto cleanup;
+                    }
+                    Sleep(300);
+                }
+                */
+                result = SUCCEEDED(LLTCCommonUtils::CallWmiMethodWithIntParamFromParameters(
+                    pSvc, 
+                    instancePath, 
+                    L"SetSmartFanMode", 
+                    static_cast<int>(mode)
+                ));
+            }
+        }
+        
+        LLTCCommonUtils::UninitializeCOM();
+        if(!result) 
+            return std::unexpected(ResultState::Failed);
+        return {};
     }
-    
-    UninitializeCOM();
-    return result;
-}
 
 } // namespace LegionPowerMode

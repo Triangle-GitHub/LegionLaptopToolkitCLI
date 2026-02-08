@@ -1,24 +1,8 @@
 #pragma once
 
-#include <windows.h>
-#include <vector>
-#include <cstdint>
+#include "CommonUtils.hpp"
 #include <stdexcept>
 #include <batclass.h>
-#include <setupapi.h>
-#include <devguid.h>
-#include "CommonUtils.hpp"
-
-enum class BatteryState {
-    Conservation,
-    Normal,
-    RapidCharge
-};
-enum class ChargingState {
-    Connected,
-    ConnectedLowWattage,
-    Disconnected
-};
 
 // Lenovo-specific battery structure
 #pragma pack(push, 2)
@@ -49,152 +33,178 @@ struct BatteryInfoResult {
     SYSTEMTIME firstUseDate;
 };
 
-namespace LenovoBatteryControl {
-    using LenovoCommonUtils::ReverseEndianness;
-    using LenovoCommonUtils::ReverseEndianness16;
-    using LenovoCommonUtils::GetNthBit;
-    using LenovoCommonUtils::GetEnergyDriverHandle;
-    using LenovoCommonUtils::GetBatteryHandle;
-    using LenovoCommonUtils::GetBatteryTag;
-    
-    inline bool DecodeFATDate(uint16_t fatDate, SYSTEMTIME& outDate) {
-        if (fatDate == 0) return false;
-        
-        uint16_t day = fatDate & 0x1F;
-        uint16_t month = (fatDate >> 5) & 0x0F;
-        uint16_t year = ((fatDate >> 9) & 0x7F) + 1980;
+// Declarations
+namespace LLTCBatteryControl {
+    inline std::expected<BatteryMode, ResultState> GetBatteryMode() noexcept;
+    inline std::expected<void, ResultState> SetBatteryMode(BatteryMode newState) noexcept;
+    inline std::expected<double, ResultState> GetBatteryTemperatureC() noexcept;
+    inline std::expected<BatteryInfoResult, ResultState> GetBatteryInformation() noexcept;
+}
 
-        if (year < 2018 || year > 2077 || month < 1 || month > 12 || day < 1 || day > 31)
-            return false;
+// Definitions
+namespace LLTCBatteryControl {
+    using LLTCCommonUtils::ReverseEndianness;
+    using LLTCCommonUtils::ReverseEndianness16;
+    using LLTCCommonUtils::GetNthBit;
+    using LLTCCommonUtils::GetEnergyDriverHandle;
+    using LLTCCommonUtils::GetBatteryHandle;
+    using LLTCCommonUtils::GetBatteryTag;
 
-        outDate.wYear = year;
-        outDate.wMonth = month;
-        outDate.wDay = day;
-        outDate.wHour = 0;
-        outDate.wMinute = 0;
-        outDate.wSecond = 0;
-        outDate.wMilliseconds = 0;
-        return true;
-    }
-    
-    inline double DecodeTemperature(uint16_t rawTemp) {
-        double tempC = (static_cast<double>(rawTemp) - 2731.6) / 10.0;
-        return (tempC >= 0) ? tempC : -1.0;
-    }
+    namespace{
+        constexpr DWORD IOCTL_ENERGY_BATTERY_INFORMATION = 0x83102138;
+        constexpr DWORD IOCTL_ENERGY_BATTERY_CHARGE_MODE = 0x831020F8;
 
-    inline bool GetLenovoBatteryInformation(uint32_t index, LENOVO_BATTERY_INFORMATION& outInfo) {
-        HANDLE hDriver = GetEnergyDriverHandle();
-        if (hDriver == INVALID_HANDLE_VALUE) {
-            return false;
+        inline bool DecodeFATDate(uint16_t fatDate, SYSTEMTIME& outDate) {
+            if (fatDate == 0) return false;
+            
+            uint16_t day = fatDate & 0x1F;
+            uint16_t month = (fatDate >> 5) & 0x0F;
+            uint16_t year = ((fatDate >> 9) & 0x7F) + 1980;
+
+            if (year < 2018 || year > 2077 || month < 1 || month > 12 || day < 1 || day > 31)
+                return false;
+
+            outDate.wYear = year;
+            outDate.wMonth = month;
+            outDate.wDay = day;
+            outDate.wHour = 0;
+            outDate.wMinute = 0;
+            outDate.wSecond = 0;
+            outDate.wMilliseconds = 0;
+            return true;
+        }
+        inline double DecodeTemperature(uint16_t rawTemp) {
+            double tempC = (static_cast<double>(rawTemp) - 2731.6) / 10.0;
+            return (tempC >= 0) ? tempC : -1.0;
         }
 
-        DWORD bytesReturned = 0;
-        constexpr DWORD bufferSize = 256;
-        BYTE buffer[bufferSize] = {0};
-
-        BOOL success = DeviceIoControl(
-            hDriver,
-            0x83102138, // IOCTL_ENERGY_BATTERY_INFORMATION
-            &index,
-            sizeof(index),
-            buffer,
-            bufferSize,
-            &bytesReturned,
-            nullptr
-        );
-        if(!success) return false;
-
-        memcpy(&outInfo, buffer, sizeof(LENOVO_BATTERY_INFORMATION));
-
-        return true;
-    }
-
-    inline bool GetBatteryTemperatureC(double& outTempC) {
-        LENOVO_BATTERY_INFORMATION info = {0};
-
-        for (uint32_t i = 0; i < 3; i++) {
-            if (GetLenovoBatteryInformation(i, info)) {
-                if (info.Temperature != 0x0000 && info.Temperature != 0xFFFF) {
-                    outTempC = DecodeTemperature(info.Temperature);
-                    return (outTempC >= 0);
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    inline bool GetStandardBatteryInformation(ULONG batteryTag, BATTERY_INFORMATION& outInfo) {
-        HANDLE hBattery = GetBatteryHandle();
-        if (hBattery == INVALID_HANDLE_VALUE) {
-            return false;
-        }
-
-        BATTERY_QUERY_INFORMATION query = { 
-            batteryTag, 
-            BatteryInformation, 
-            0
-        };
-
-        DWORD bytesReturned = 0;
-        BOOL success = DeviceIoControl(
-            hBattery,
-            IOCTL_BATTERY_QUERY_INFORMATION,
-            &query,
-            sizeof(query),
-            &outInfo,
-            sizeof(outInfo),
-            &bytesReturned,
-            nullptr
-        );
-
-        return success && (bytesReturned == sizeof(BATTERY_INFORMATION));
-    }
-
-    inline bool GetBatteryStatus(ULONG batteryTag, BATTERY_STATUS& outStatus) {
-        HANDLE hBattery = GetBatteryHandle();
-        if (hBattery == INVALID_HANDLE_VALUE) {
-            return false;
-        }
-
-        BATTERY_WAIT_STATUS waitStatus = {0};
-        waitStatus.BatteryTag = batteryTag;
-
-        DWORD bytesReturned = 0;
-        BOOL success = DeviceIoControl(
-            hBattery,
-            IOCTL_BATTERY_QUERY_STATUS,
-            &waitStatus,
-            sizeof(waitStatus),
-            &outStatus,
-            sizeof(outStatus),
-            &bytesReturned,
-            nullptr
-        );
-        return success && (bytesReturned == sizeof(BATTERY_STATUS));
-    }
-
-    inline bool GetBatteryInformation(BatteryInfoResult& outResult) {
-        try {
-            SYSTEM_POWER_STATUS sps = {0};
-            if (!GetSystemPowerStatus(&sps)) {
+        inline bool GetLenovoBatteryInformation(uint32_t index, LENOVO_BATTERY_INFORMATION& outInfo) {
+            HANDLE hDriver = GetEnergyDriverHandle();
+            if (hDriver == INVALID_HANDLE_VALUE) {
                 return false;
             }
 
+            DWORD bytesReturned = 0;
+            constexpr DWORD bufferSize = 256;
+            BYTE buffer[bufferSize] = {0};
+
+            BOOL success = DeviceIoControl(
+                hDriver,
+                IOCTL_ENERGY_BATTERY_INFORMATION,
+                &index,
+                sizeof(index),
+                buffer,
+                bufferSize,
+                &bytesReturned,
+                nullptr
+            );
+            if(!success) return false;
+
+            memcpy(&outInfo, buffer, sizeof(LENOVO_BATTERY_INFORMATION));
+
+            return true;
+        }
+        inline bool GetStandardBatteryInformation(ULONG batteryTag, BATTERY_INFORMATION& outInfo) {
             HANDLE hBattery = GetBatteryHandle();
             if (hBattery == INVALID_HANDLE_VALUE) {
                 return false;
             }
+
+            BATTERY_QUERY_INFORMATION query = { 
+                batteryTag, 
+                BatteryInformation, 
+                0
+            };
+
+            DWORD bytesReturned = 0;
+            BOOL success = DeviceIoControl(
+                hBattery,
+                IOCTL_BATTERY_QUERY_INFORMATION,
+                &query,
+                sizeof(query),
+                &outInfo,
+                sizeof(outInfo),
+                &bytesReturned,
+                nullptr
+            );
+
+            return success && (bytesReturned == sizeof(BATTERY_INFORMATION));
+        }
+
+        inline bool GetBatteryStatus(ULONG batteryTag, BATTERY_STATUS& outStatus) {
+            HANDLE hBattery = GetBatteryHandle();
+            if (hBattery == INVALID_HANDLE_VALUE) {
+                return false;
+            }
+
+            BATTERY_WAIT_STATUS waitStatus = {0};
+            waitStatus.BatteryTag = batteryTag;
+
+            DWORD bytesReturned = 0;
+            BOOL success = DeviceIoControl(
+                hBattery,
+                IOCTL_BATTERY_QUERY_STATUS,
+                &waitStatus,
+                sizeof(waitStatus),
+                &outStatus,
+                sizeof(outStatus),
+                &bytesReturned,
+                nullptr
+            );
+            return success && (bytesReturned == sizeof(BATTERY_STATUS));
+        }
+
+        inline bool GetChargingState(ChargingState& outState) { // may some bugs
+            SYSTEM_POWER_STATUS sps = {0};
+            if (!GetSystemPowerStatus(&sps)) {
+                return false;
+            }
+            if (sps.ACLineStatus == 1) outState = ChargingState::Connected;
+            else outState = ChargingState::Disconnected;
+            return true;
+        }
+    }   // namespace
+    
+    inline std::expected<double, ResultState> GetBatteryTemperatureC() noexcept {
+        LENOVO_BATTERY_INFORMATION info = {0};
+        double outTempC;
+        for (uint32_t i = 0; i < 3; i++) {
+            if (GetLenovoBatteryInformation(i, info)) {
+                if (info.Temperature != 0x0000 && info.Temperature != 0xFFFF) {
+                    outTempC = DecodeTemperature(info.Temperature);
+                    if (outTempC >= 0){
+                        return outTempC;
+                    } else{
+                        return std::unexpected(ResultState::Failed);
+                    }
+                }
+            }
+        }
+        return std::unexpected(ResultState::Failed);
+    }
+
+    inline std::expected<BatteryInfoResult, ResultState> GetBatteryInformation() noexcept {
+        try {
+            BatteryInfoResult outResult;
+            SYSTEM_POWER_STATUS sps = {0};
+            if (!GetSystemPowerStatus(&sps)) {
+                return std::unexpected(ResultState::Failed);
+            }
+
+            HANDLE hBattery = GetBatteryHandle();
+            if (hBattery == INVALID_HANDLE_VALUE) {
+                return std::unexpected(ResultState::Failed);
+            }
             ULONG batteryTag = 0;
             if (!GetBatteryTag(hBattery, batteryTag)) {
-                return false;
+                return std::unexpected(ResultState::Failed);
             }
 
             BATTERY_INFORMATION batInfo = {0};
             BATTERY_STATUS batStatus = {0};
             if (!GetStandardBatteryInformation(batteryTag, batInfo) ||
                 !GetBatteryStatus(batteryTag, batStatus)) {
-                return false;
+                return std::unexpected(ResultState::Failed);
             }
 
             LENOVO_BATTERY_INFORMATION lenovoInfo = {0};
@@ -244,28 +254,16 @@ namespace LenovoBatteryControl {
                 memset(&outResult.firstUseDate, 0, sizeof(SYSTEMTIME));
             }
             
-            return true;
+            return outResult;
         } catch (...) {
-            memset(&outResult, 0, sizeof(BatteryInfoResult));
-            outResult.temperatureC = -1.0;
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
     }
 
-    inline bool GetChargingState(ChargingState& outState) {
-        SYSTEM_POWER_STATUS sps = {0};
-        if (!GetSystemPowerStatus(&sps)) {
-            return false;
-        }
-        if (sps.ACLineStatus == 1) outState = ChargingState::Connected;
-        else outState = ChargingState::Disconnected;
-        return true;
-    }
-
-    inline bool GetCurrentBatteryMode(BatteryState& outState) {
+    inline std::expected<BatteryMode, ResultState> GetBatteryMode() noexcept {
         HANDLE hDriver = GetEnergyDriverHandle();
         if (hDriver == INVALID_HANDLE_VALUE) {
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
 
         DWORD bytesReturned = 0;
@@ -274,7 +272,7 @@ namespace LenovoBatteryControl {
 
         BOOL success = DeviceIoControl(
             hDriver,
-            0x831020F8, //IOCTL_ENERGY_BATTERY_CHARGE_MODE
+            IOCTL_ENERGY_BATTERY_CHARGE_MODE,
             &inBuffer, sizeof(inBuffer),
             &outBuffer, sizeof(outBuffer),
             &bytesReturned,
@@ -282,52 +280,52 @@ namespace LenovoBatteryControl {
         );
 
         if (!success || bytesReturned != sizeof(uint32_t)) {
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
 
         uint32_t state = ReverseEndianness(outBuffer);
 
         if (GetNthBit(state, 17)) { //Charging
-            outState = GetNthBit(state, 26) ? BatteryState::RapidCharge : BatteryState::Normal;
+            return (GetNthBit(state, 26) ? BatteryMode::RapidCharge : BatteryMode::Normal);
         } else if (GetNthBit(state, 29)) { //Conservation
-            outState = BatteryState::Conservation;
+            return BatteryMode::Conservation;
         } else {
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
-
-        return true;
     }
 
-    inline bool SetBatteryMode(BatteryState newState) {
+    inline std::expected<void, ResultState> SetBatteryMode(BatteryMode newState) noexcept {
         HANDLE hDriver = GetEnergyDriverHandle();
         if (hDriver == INVALID_HANDLE_VALUE) {
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
 
-        BatteryState currentState = BatteryState::Normal;
-        if(!GetCurrentBatteryMode(currentState)) return false;
+        auto result = GetBatteryMode();
+        if(!result.has_value())
+            return std::unexpected(ResultState::Failed);
 
+        BatteryMode currentState = result.value();
         std::vector<uint32_t> commands;
 
         switch (newState) {
-        case BatteryState::Conservation:
-            if (currentState == BatteryState::RapidCharge) {
+        case BatteryMode::Conservation:
+            if (currentState == BatteryMode::RapidCharge) {
                 commands = { 0x8, 0x3 };
             } else {
                 commands = { 0x3 };
             }
             break;
 
-        case BatteryState::Normal:
-            if (currentState == BatteryState::Conservation) {
+        case BatteryMode::Normal:
+            if (currentState == BatteryMode::Conservation) {
                 commands = { 0x5 };
             } else {
                 commands = { 0x8 };
             }
             break;
 
-        case BatteryState::RapidCharge:
-            if (currentState == BatteryState::Conservation) {
+        case BatteryMode::RapidCharge:
+            if (currentState == BatteryMode::Conservation) {
                 commands = { 0x5, 0x7 };
             } else {
                 commands = { 0x7 };
@@ -335,7 +333,7 @@ namespace LenovoBatteryControl {
             break;
 
         default:
-            return false;
+            return std::unexpected(ResultState::Failed);
         }
 
         DWORD bytesReturned;
@@ -343,18 +341,18 @@ namespace LenovoBatteryControl {
         for (uint32_t cmd : commands) {
             BOOL success = DeviceIoControl(
                 hDriver,
-                0x831020F8, // IOCTL_ENERGY_BATTERY_CHARGE_MODE
+                IOCTL_ENERGY_BATTERY_CHARGE_MODE,
                 &cmd, sizeof(cmd),
                 &dummyOutput, sizeof(dummyOutput),
                 &bytesReturned,
                 nullptr
             );
             if (!success) {
-                return false;
+                return std::unexpected(ResultState::Failed);
             }
         }
 
-        return true;
+        return {};
     }
 
-} // namespace LenovoBatteryControl
+}   // namespace LLTCBatteryControl

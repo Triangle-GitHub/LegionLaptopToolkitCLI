@@ -1,16 +1,15 @@
-#include <iomanip>
-#include <print>
-#include <algorithm>
-#include <numeric>
-
-#include <windows.h>
-
 #include "LenovoBatteryControl.hpp"
 #include "LenovoOverdriveControl.hpp"
 #include "LenovoWhitekeyboardbacklightControl.hpp"
 #include "LenovoPowerModeControl.hpp"
 #include "LenovoHybridmodeControl.hpp"
 #include "LenovoAlwaysonusbControl.hpp"
+
+#include <iomanip>
+#include <print>
+#include <algorithm>
+#include <numeric>
+#include <conio.h>
 
 inline std::string toLower(std::string_view sv);
 bool TurnOffMonitor();
@@ -324,170 +323,83 @@ bool TurnOffMonitor(){
 }
 
 bool GetBatteryMode(){
-    BatteryState currentMode;
-    if (LenovoBatteryControl::GetCurrentBatteryMode(currentMode)) {
-        switch (currentMode) {
-            case BatteryState::Conservation:
-                std::print("Conservation\n");
-                break;
-            case BatteryState::Normal:
-                std::print("Normal\n");
-                break;
-            case BatteryState::RapidCharge:
-                std::print("RapidCharge\n");
-                break;
-        }
-    } else return false;
-    return true;
-}
-
-bool SetBatteryMode(int tar){
-    BatteryState state;
-    switch(tar){
-        case 1:
-            state=BatteryState::Conservation;
-            break;
-        case 2:
-            state=BatteryState::Normal;
-            break;
-        case 3:
-            state=BatteryState::RapidCharge;
-            break;
-        default:
-            std::print(stderr, "Invalid battery mode.\n");
-            return false;
-    }
-    bool success = LenovoBatteryControl::SetBatteryMode(state);
-    if (success) {
-        switch (state) {
-            case BatteryState::Conservation:
-                std::print("Conservation\n");
-                break;
-            case BatteryState::Normal:
-                std::print("Normal\n");
-                break;
-            case BatteryState::RapidCharge:
-                std::print("RapidCharge\n");
-                break;
-        }
+    auto result = LLTCBatteryControl::GetBatteryMode();
+    if (result) {
+        std::print("Battery charging mode: {}\n", to_string(result.value()));
     } else {
-        std::print(stderr, "Switch failed.\n");
+        std::print(stderr, "Failed to get battery charging mode: {}\n", to_string(result.error()));
         return false;
     }
     return true;
 }
 
-bool SetOverdrive(int enable) {
-    if (enable != 0 && enable != 1) {
-        std::print(stderr, "Not supported or permission denined.\n");
+bool SetBatteryMode(int tar){
+    auto state = intToBatteryMode(tar);
+    if(!state)
         return false;
-    }
-
-    OverDriveController controller;
-    if (!controller.IsOverDriveSupported()) {
-        std::print(stderr, "Not supported or permission denined.\n");
-        return false;
-    }
-
-    HRESULT hr = controller.SetOverDriveStatus(enable == 1);
-    if (SUCCEEDED(hr)) {
-        if (enable == 1) {
-            std::print("Overdrive enabled\n");
-        } else {
-            std::print("Overdrive disabled\n");
-        }
-        return true;
+    auto result = LLTCBatteryControl::SetBatteryMode(state.value());
+    if(result){
+        std::print("Successfully set battery charging mode to: {}\n", to_string(state.value()));
     } else {
-        std::print(stderr, "Failed to set Overdrive status.\n");
+        std::print(stderr, "Failed to set battery charging mode: {}\n", to_string(result.error()));
         return false;
     }
+    return true;
 }
 
 bool GetOverdrive() {
-    OverDriveController controller;
-    if (!controller.IsOverDriveSupported()) {
-        std::print(stderr, "Not supported or permission denined.\n");
-        return false;
-    }
-
-    int status = controller.GetOverDriveStatus();
-    if (status == 1) {
-        std::print("Overdrive ON\n");
-        return true;
-    } else if (status == 0) {
-        std::print("Overdrive OFF\n");
-        return true;
+    auto result = LLTCOverDrive::GetState();
+    if (result) {
+        std::print("OverDrive state: {}\n", to_string(result.value()));
     } else {
-        std::print(stderr, "Failed to get Overdrive status.\n");
+        std::print(stderr, "Failed to get OverDrive state: {}\n", to_string(result.error()));
         return false;
     }
+    return true;
+}
+bool SetOverdrive(int enable) {
+    auto result = LLTCOverDrive::SetState(enable);
+    if(result){
+        std::print("Successfully set OverDrive state to: {}\n", to_string(intToOverDriveState(enable).value()));
+    } else {
+        std::print(stderr, "Failed to set OverDrive state: {}\n", to_string(result.error()));
+        return false;
+    }
+    return true;
 }
 
 bool GetWhiteKeyboardBacklight() {
-    WhiteKeyboardBacklightState currentState;
-    if (LenovoWhiteKeyboardBacklightControl::GetState(currentState)) {
-        switch (currentState) {
-            case WhiteKeyboardBacklightState::Off:
-                std::print(stdout, "Off\n");
-                break;
-            case WhiteKeyboardBacklightState::Low:
-                std::print(stdout, "Low\n");
-                break;
-            case WhiteKeyboardBacklightState::High:
-                std::print(stdout, "High\n");
-                break;
-        }
+    auto result = LLTCWhiteKeyboardBacklight::GetState();
+    if(result){
+        std::print("Keyboard backlight state: {}\n", to_string(result.value()));
     } else {
-        std::print(stderr, "Failed to get keyboard backlight state.\n");
-        return false;
+        std::print(stderr, "Failed to get keyboard backlight state: {}\n", to_string(result.error()));
     }
     return true;
 }
 
 bool SetWhiteKeyboardBacklight(int tar) {
-    WhiteKeyboardBacklightState state;
-    switch(tar) {
-        case 0:
-            state = WhiteKeyboardBacklightState::Off;
-            break;
-        case 1:
-            state = WhiteKeyboardBacklightState::Low;
-            break;
-        case 2:
-            state = WhiteKeyboardBacklightState::High;
-            break;
-        default:
-            std::print(stderr, "Invalid backlight level. Use 0 for Off, 1 for Low, or 2 for High.\n");
-            return false;
-    }
-    
-    bool success = LenovoWhiteKeyboardBacklightControl::SetState(state);
-    if (success) {
-        switch (state) {
-            case WhiteKeyboardBacklightState::Off:
-                std::print(stdout, "Off\n");
-                break;
-            case WhiteKeyboardBacklightState::Low:
-                std::print(stdout, "Low\n");
-                break;
-            case WhiteKeyboardBacklightState::High:
-                std::print(stdout, "High\n");
-                break;
-        }
+    auto state = intToWhiteKeyboardBacklightState(tar);
+    if(!state)
+        return false;
+    auto result = LLTCWhiteKeyboardBacklight::SetState(state.value());
+    if(result){
+        std::print("Successfully set keyboard backlight state to: {}\n", to_string(state.value()));
     } else {
-        std::print(stderr, "Failed to set keyboard backlight state.\n");
+        std::print(stderr, "Failed to set keyboard backlight state: {}\n", to_string(result.error()));
         return false;
     }
     return true;
 }
 
 bool GetFullBatteryInfo() {
-    BatteryInfoResult result = {0};
-
-    if (!LenovoBatteryControl::GetBatteryInformation(result)) {
-        std::print(stderr, "Failed to get battery information\n");
+    auto res = LLTCBatteryControl::GetBatteryInformation();
+    if(!res.has_value()){
+        std::print(stderr, "Failed to get battery information: {}\n", to_string(res.error()));
         return false;
     }
+    const auto& result = res.value();
+
     std::print("AC Connected: {}\n", result.isAcConnected ? "Yes" : "No");
     std::print("Battery Life: {}%\n", static_cast<int>(result.batteryLifePercent));
     
@@ -607,11 +519,12 @@ void GetFullBatteryInfoDmon(int seconds) {
             static_cast<int>(st.wSecond)
         );
 
-        BatteryInfoResult result = {0};
-        if (!LenovoBatteryControl::GetBatteryInformation(result)) {
+        auto res = LLTCBatteryControl::GetBatteryInformation();
+        if(!res.has_value()){
             Sleep(1000);
             continue;
         }
+        const auto& result = res.value();
 
         double currentTemp = result.temperatureC;
         double currentPower = result.dischargeRate / 1000.0;
@@ -686,70 +599,28 @@ void GetFullBatteryInfoDmon(int seconds) {
 }
 
 bool GetPowerMode() {
-    PowerMode currentMode;
-    if (LegionPowerMode::GetPowerMode(currentMode)) {
-        switch (currentMode) {
-            case PowerMode::Quiet:
-                std::print("Quiet\n");
-                break;
-            case PowerMode::Balance:
-                std::print("Balance\n");
-                break;
-            case PowerMode::Performance:
-                std::print("Performance\n");
-                break;
-            case PowerMode::GodMode:
-                std::print("GodMode\n");
-                break;
-        }
-        return true;
+    auto result = LLTCPowerMode::GetState();
+    if (result) {
+        std::print("Power mode: {}\n", to_string(result.value()));
     } else {
-        std::print(stderr, "Failed to get current power mode.\n");
+        std::print(stderr, "Failed to get power mode: {}\n", to_string(result.error()));
         return false;
     }
+    return true;
 }
 
 bool SetPowerMode(int tar) {
-    PowerMode mode;
-    switch(tar) {
-        case 1:
-            mode = PowerMode::Quiet;
-            break;
-        case 2:
-            mode = PowerMode::Balance;
-            break;
-        case 3:
-            mode = PowerMode::Performance;
-            break;
-        case 254:
-            mode = PowerMode::GodMode;
-            std::print(stderr, "GodMode not supported.\n");
-            return false;
-        default:
-            std::print(stderr, "Invalid power mode.\n");
-            return false;
-    }
-    
-    if (LegionPowerMode::SetPowerMode(mode)) {
-        switch (mode) {
-            case PowerMode::Quiet:
-                std::print("Quiet\n");
-                break;
-            case PowerMode::Balance:
-                std::print("Balance\n");
-                break;
-            case PowerMode::Performance:
-                std::print("Performance\n");
-                break;
-            case PowerMode::GodMode:
-                std::print("GodMode\n");
-                break;
-        }
-        return true;
+    auto state = intToPowerMode(tar);
+    if(!state)
+        return false;
+    auto result = LLTCPowerMode::SetState(state.value());
+    if(result){
+        std::print("Successfully set power mode to: {}\n", to_string(state.value()));
     } else {
-        std::print(stderr, "Switch failed.\n");
+        std::print(stderr, "Failed to set power mode: {}\n", to_string(result.error()));
         return false;
     }
+    return true;
 }
 
 bool GetGPUMode() {
@@ -836,7 +707,7 @@ bool SetGPUMode(int tar) {
     if (requiresReboot) {
         std::print("\n*** SYSTEM RESTART REQUIRED ***\n");
         std::print("Press ANY KEY to restart immediately...\n");
-        std::cin.get();
+        _getch();
         
         std::system("shutdown /r /t 0");
         return true;
@@ -845,58 +716,24 @@ bool SetGPUMode(int tar) {
 }
 
 bool GetAlwaysOnUSB() {
-    auto currentState = LenovoFeatures::GetAlwaysOnUSBState();
-    if (currentState.has_value()) {
-        switch (currentState.value()) {
-            case AlwaysOnUSBState::Off:
-                std::print("Off\n");
-                break;
-            case AlwaysOnUSBState::OnWhenSleeping:
-                std::print("On, when sleeping\n");
-                break;
-            case AlwaysOnUSBState::OnAlways:
-                std::print("On, always\n");
-                break;
-        }
+    auto result = LLTCAlwaysOnUSB::GetState();
+    if (result) {
+        std::print("AlwaysOnUSB state: {}\n", to_string(result.value()));
     } else {
-        std::print(stderr, "Failed to get AlwaysOnUSB state.\n");
+        std::print(stderr, "Failed to get AlwaysOnUSB state: {}\n", to_string(result.error()));
         return false;
     }
     return true;
 }
-
 bool SetAlwaysOnUSB(int tar) {
-    AlwaysOnUSBState state;
-    switch(tar) {
-        case 0:
-            state = AlwaysOnUSBState::Off;
-            break;
-        case 1:
-            state = AlwaysOnUSBState::OnWhenSleeping;
-            break;
-        case 2:
-            state = AlwaysOnUSBState::OnAlways;
-            break;
-        default:
-            std::print(stderr, "Invalid AlwaysOnUSB state. Use 0 for Off, 1 for On when sleeping, or 2 for On always.\n");
-            return false;
-    }
-    
-    bool success = LenovoFeatures::SetAlwaysOnUSBState(state);
-    if (success) {
-        switch (state) {
-            case AlwaysOnUSBState::Off:
-                std::print("Off\n");
-                break;
-            case AlwaysOnUSBState::OnWhenSleeping:
-                std::print("On, when sleeping\n");
-                break;
-            case AlwaysOnUSBState::OnAlways:
-                std::print("On, always\n");
-                break;
-        }
+    auto state = intToAlwaysOnUSBState(tar);
+    if(!state)
+        return false;
+    auto result = LLTCAlwaysOnUSB::SetState(state.value());
+    if(result){
+        std::print("Successfully set AlwaysOnUSB state to: {}\n", to_string(state.value()));
     } else {
-        std::print(stderr, "Failed to set AlwaysOnUSB state.\n");
+        std::print(stderr, "Failed to set AlwaysOnUSB state: {}\n", to_string(result.error()));
         return false;
     }
     return true;

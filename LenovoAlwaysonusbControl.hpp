@@ -1,77 +1,64 @@
 #pragma once
+
 #include "CommonUtils.hpp"
-#include <cstdint>
-#include <optional>
-#include <vector>
-#include <chrono>
-#include <thread>
 
-enum class AlwaysOnUSBState {
-    Off,
-    OnWhenSleeping,
-    OnAlways
-};
+// Declarations
+namespace LLTCAlwaysOnUSB {
+    inline bool IsSupported()noexcept;
+    inline std::expected<AlwaysOnUSBState, ResultState> GetState()noexcept;
+    inline std::expected<void, ResultState> SetState(AlwaysOnUSBState state)noexcept;
+}
 
-namespace LenovoFeatures {
+// Definitions
+namespace LLTCAlwaysOnUSB {
+    namespace{
+        constexpr DWORD IOCTL_ENERGY_SETTINGS = 0x831020E8;
+    }
 
-    constexpr DWORD IOCTL_ENERGY_SETTINGS = 0x831020E8;
-
-    inline std::optional<AlwaysOnUSBState> GetAlwaysOnUSBState() {
+    inline std::expected<AlwaysOnUSBState, ResultState> GetState() noexcept {
         uint32_t input = 0x2;
         uint32_t output = 0;
         
-        if (!LenovoCommonUtils::EnergyDrvIoControl(IOCTL_ENERGY_SETTINGS, input, output)) {
-            return std::nullopt;
-        }
+        if (!LLTCCommonUtils::EnergyDrvIoControl(IOCTL_ENERGY_SETTINGS, input, output))
+            return std::unexpected(ResultState::Failed);
         
-        uint32_t state = LenovoCommonUtils::ReverseEndianness(output);
-        
-        if (!LenovoCommonUtils::GetNthBit(state, 31)) {
+        uint32_t state = LLTCCommonUtils::ReverseEndianness(output);
+
+        if (!LLTCCommonUtils::GetNthBit(state, 31))
             return AlwaysOnUSBState::Off;
-        }
-        
-        if (LenovoCommonUtils::GetNthBit(state, 23)) {
+        if (LLTCCommonUtils::GetNthBit(state, 23))
             return AlwaysOnUSBState::OnAlways;
-        }
-        
         return AlwaysOnUSBState::OnWhenSleeping;
     }
     
-    inline bool SetAlwaysOnUSBState(AlwaysOnUSBState state) {
+    inline std::expected<void, ResultState> SetState(AlwaysOnUSBState state) noexcept {
         std::vector<uint32_t> commands;
         switch (state) {
-            case AlwaysOnUSBState::Off:
-                commands = {0xB, 0x12};
-                break;
-            case AlwaysOnUSBState::OnWhenSleeping:
-                commands = {0xA, 0x12};
-                break;
-            case AlwaysOnUSBState::OnAlways:
-                commands = {0xA, 0x13};
-                break;
-            default:
-                return false;
+            case AlwaysOnUSBState::Off:             commands = {0xB, 0x12}; break;
+            case AlwaysOnUSBState::OnWhenSleeping:  commands = {0xA, 0x12}; break;
+            case AlwaysOnUSBState::OnAlways:        commands = {0xA, 0x13}; break;
+            default: return std::unexpected(ResultState::InvalidParameter);
         }
         
         for (uint32_t cmd : commands) {
             uint32_t dummyOutput = 0;
-            if (!LenovoCommonUtils::EnergyDrvIoControl(IOCTL_ENERGY_SETTINGS, cmd, dummyOutput)) {
-                return false;
-            }
+            if (!LLTCCommonUtils::EnergyDrvIoControl(IOCTL_ENERGY_SETTINGS, cmd, dummyOutput))
+                return std::unexpected(ResultState::Failed);
         }
         
         for (int retry = 0; retry < 10; ++retry) {
-            auto currentState = GetAlwaysOnUSBState();
-            if (currentState.has_value() && currentState.value() == state) {
-                return true;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            auto currentState = GetState();
+            if(!currentState)
+                return std::unexpected(currentState.error());
+            if (currentState.value() == state)
+                return {};
+            Sleep(50);
         }
         
-        return false;
+        return std::unexpected(ResultState::RetryTimeout);
     }
     
-    inline bool IsAlwaysOnUSBSupported() {
-        return GetAlwaysOnUSBState().has_value();
+    inline bool IsSupported() noexcept {
+        return GetState().has_value();
     }
-} // namespace LenovoFeatures
+}

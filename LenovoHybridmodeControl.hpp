@@ -1,26 +1,17 @@
+#pragma once
+
 #include "CommonUtils.hpp"
-#include <iostream>
-#include <string>
-#include <comdef.h>
 #include <future>
 #include <thread>
 #include <chrono>
 #include <atomic>
 #include <mutex>
-#include <vector>
 #include <stdexcept>
 
 enum class IGPUModeState {
     Default = 0,
     IGPUOnly = 1,
     Auto = 2,
-};
-
-enum class HybridModeState {
-    On,
-    OnIGPUOnly,
-    OnAuto,
-    Off
 };
 
 enum class OperationResult {
@@ -46,17 +37,16 @@ private:
     bool m_igpuModeSupported = false;
     
     HRESULT initializeWMI() {
-        HRESULT hr = LenovoCommonUtils::InitializeCOMWithSecurity();
+        HRESULT hr = LLTCCommonUtils::InitializeCOM();
         if (FAILED(hr)) {
             return hr;
         }
-        hr = LenovoCommonUtils::ConnectToWMI(&m_pLocator, &m_pServices);
+        hr = LLTCCommonUtils::ConnectToWMI(&m_pLocator, &m_pServices);
         if (FAILED(hr)) {
-            LenovoCommonUtils::UninitializeCOM();
+            LLTCCommonUtils::UninitializeCOM();
             return hr;
         }
-        m_instancePath = LenovoCommonUtils::GetFirstWmiInstancePathStandard(
-            m_pServices, L"LENOVO_GAMEZONE_DATA");
+        m_instancePath = LLTCCommonUtils::GetFirstWmiInstancePath(m_pServices, {L"LENOVO_GAMEZONE_DATA"}, LLTCCommonUtils::WmiPathType::Full);
         return S_OK;
     }
     
@@ -69,25 +59,25 @@ private:
             m_pLocator->Release();
             m_pLocator = nullptr;
         }
-        LenovoCommonUtils::UninitializeCOM();
+        LLTCCommonUtils::UninitializeCOM();
     }
     
     bool isGSyncSupported() {
         if (m_instancePath.empty()) return false;
-        int result = LenovoCommonUtils::CallWmiMethodNoParams(
+        int result = LLTCCommonUtils::CallWmiMethodNoParams(
             m_pServices, m_instancePath.c_str(), L"IsSupportGSync");
         return result > 0;
     }
     
     int getGSyncStatus() {
         if (m_instancePath.empty()) return -1;
-        return LenovoCommonUtils::CallWmiMethodNoParams(
+        return LLTCCommonUtils::CallWmiMethodNoParams(
             m_pServices, m_instancePath.c_str(), L"GetGSyncStatus");
     }
     
     bool setGSyncStatus(bool enable) {
         if (m_instancePath.empty()) return false;
-        return LenovoCommonUtils::CallWmiMethodWithIntParamFromClassDef(
+        return LLTCCommonUtils::CallWmiMethodWithIntParamFromClassDef(
             m_pServices,
             m_instancePath,
             L"LENOVO_GAMEZONE_DATA",
@@ -98,14 +88,14 @@ private:
     
     bool isIGPUModeSupported() {
         if (m_instancePath.empty()) return false;
-        int result = LenovoCommonUtils::CallWmiMethodNoParams(
+        int result = LLTCCommonUtils::CallWmiMethodNoParams(
             m_pServices, m_instancePath.c_str(), L"IsSupportIGPUMode");
         return result > 0;
     }
     
     int getIGPUModeStatus() {
         if (m_instancePath.empty()) return -1;
-        return LenovoCommonUtils::CallWmiMethodNoParams(
+        return LLTCCommonUtils::CallWmiMethodNoParams(
             m_pServices, m_instancePath.c_str(), L"GetIGPUModeStatus");
     }
     
@@ -169,14 +159,14 @@ private:
     
     bool isDGPUAvailable() {
         if (m_instancePath.empty()) return false;
-        int result = LenovoCommonUtils::CallWmiMethodNoParams(
+        int result = LLTCCommonUtils::CallWmiMethodNoParams(
             m_pServices, m_instancePath.c_str(), L"IsDGPUAvailable");
         return result > 0;
     }
     
     bool notifyDGPUStatus(bool activate) {
         if (m_instancePath.empty()) return false;
-        return LenovoCommonUtils::CallWmiMethodWithIntParamFromClassDef(
+        return LLTCCommonUtils::CallWmiMethodWithIntParamFromClassDef(
             m_pServices,
             m_instancePath,
             L"LENOVO_GAMEZONE_DATA",
